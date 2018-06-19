@@ -39,7 +39,7 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
 
     # Now we can create the population. We want to give each population a population name, starting from A
     sub_population_names = list(map(chr, range(65, 65+sub_population_count)))
-    # FIXME: Can subPopNames be a tuple here?
+    # FIXME: Can subPopNames be a tuple here? ELC: could we set number of sub_pops as a global variable? 
     pop = simuPOP.Population(sub_population_size, loci=nb_loci, infoFields=['age'], subPopNames = sub_population_names)
     sub_population_names = tuple(sub_population_names)
 
@@ -77,7 +77,7 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
             # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
             # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
             [simuPOP.CloneMating(subPops=[(sub_population, virtual_sub_population) for sub_population in range(0, sub_population_count) for virtual_sub_population in [0,1,2]], weight=-1),
-            # Then we simulate random mating only in VSP 1 (ie sexually active individuals)
+            # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
             simuPOP.RandomMating(subPops=[(sub_population, 1) for sub_population in range(0, sub_population_count)], weight=1)]),
         postOps = [
             # count the individuals in each virtual subpopulation
@@ -87,6 +87,8 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
 
             # Alternatively, calculate the Fst
             # FIXME: How does this actually work? Does it work for > 2 populations? I don't really understand it yet
+            # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
+            # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
             simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
             simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
 
