@@ -9,7 +9,7 @@ maxAge = 80
 minMatingAge = 6
 maxMatingAge = 60
 gen = 100
-nb_loci = [100]
+nb_loci = 3
 frequency_file = "3.txt"
 
 def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, maxMatingAge, gen):
@@ -39,8 +39,9 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
 
     # Now we can create the population. We want to give each population a population name, starting from A
     sub_population_names = list(map(chr, range(65, 65+sub_population_count)))
-    # FIXME: Can subPopNames be a tuple here? ELC: could we set number of sub_pops as a global variable? 
-    pop = simuPOP.Population(sub_population_size, loci=nb_loci, infoFields=['age'], subPopNames = sub_population_names)
+    # FIXME: Can subPopNames be a tuple here? ELC: could we set number of sub_pops as a global variable?
+    # We have two chromosomes. The first is an autosome with nb_loci loci, and the second is the mitochondrial chromosome with 1 locus
+    pop = simuPOP.Population(sub_population_size, ploidy=2, loci=[nb_loci, 1], infoFields=['age'], subPopNames = sub_population_names, chromTypes=[simuPOP.AUTOSOME, simuPOP.MITOCHONDRIAL])
     sub_population_names = tuple(sub_population_names)
 
     # Create an attribute on each individual called 'age'. Set it to a random number between 0 and maxAge
@@ -61,13 +62,14 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
     # 4) Mature male
     # 5) Geriatric
     # 6) Dead
-
     # Note that we use a cutoff InfoSplitter here, it is also possible to
     # provide a list of values, each corresponding to a virtual subpopulation.
     # FIXME: Can we call the virtual sub populations more intuitive names than 0,1,2,3?
     pop.setVirtualSplitter(simuPOP.InfoSplitter('age',
         cutoff=[minMatingAge, maxMatingAge + 0.1, maxAge + 0.1]))
 
+    print(haplotype_frequencies[0]);
+    return;
     pop.evolve(
         initOps = [simuPOP.InitSex()] + [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i]) for i in range(0, sub_population_count)],
         # increase age by 1
@@ -78,7 +80,8 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
             # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
             [simuPOP.CloneMating(subPops=[(sub_population, virtual_sub_population) for sub_population in range(0, sub_population_count) for virtual_sub_population in [0,1,2]], weight=-1),
             # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
-            simuPOP.RandomMating(subPops=[(sub_population, 1) for sub_population in range(0, sub_population_count)], weight=1)]),
+            simuPOP.RandomMating(ops=[simuPOP.MitochondrialGenoTransmitter()],
+                                 subPops=[(sub_population, 1) for sub_population in range(0, sub_population_count)], weight=1)]),
         postOps = [
             # count the individuals in each virtual subpopulation
             # simuPOP.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (0,3), (1,0), (1, 1), (1, 2), (1, 3)]),
@@ -90,11 +93,30 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
             # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
             # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
             simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
-            simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
-
+            simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10),
+            simuPOP.Dumper(structure=False)
         ],
         gen = gen
     )
 
+
+    simuPOP.dump(pop);
+    return;
+
+
+
 if __name__ == '__main__':
     runSimulation(frequency_file, size, maxAge, minMatingAge, maxMatingAge, gen)
+
+
+# Plan
+# * Add simulation of mitochondrial DNA
+# * Break populations into VSPs and assign breeding scheme amongst VSPs
+# * SNP
+
+
+# Subpopulation 1: individuals who breed at wintering ground 1
+# Subpopulation 2: individuals who breed at wintering ground 2
+
+# VSP 1: individuals who feed at feeding ground 1
+# VSP 2: individuals who feed at feeding ground 2
