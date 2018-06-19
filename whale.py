@@ -9,7 +9,7 @@ maxAge = 80
 minMatingAge = 6
 maxMatingAge = 60
 gen = 100
-nb_loci = 3
+nb_loci = 100
 frequency_file = "3.txt"
 
 def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, maxMatingAge, gen):
@@ -68,10 +68,10 @@ def runSimulation(frequency_file, sub_population_size, maxAge, minMatingAge, max
     pop.setVirtualSplitter(simuPOP.InfoSplitter('age',
         cutoff=[minMatingAge, maxMatingAge + 0.1, maxAge + 0.1]))
 
-    print(haplotype_frequencies[0]);
-    return;
     pop.evolve(
-        initOps = [simuPOP.InitSex()] + [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i]) for i in range(0, sub_population_count)],
+        initOps = [simuPOP.InitSex()] +
+        [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
+        [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=[0.3, 0.7], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
         # increase age by 1
         preOps = simuPOP.InfoExec('age += 1'),
         matingScheme = simuPOP.HeteroMating(
