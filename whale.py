@@ -144,3 +144,19 @@ if __name__ == '__main__':
 
 # VSP 1: individuals who feed at feeding ground 1
 # VSP 2: individuals who feed at feeding ground 2
+
+
+
+#   Migration ***
+# Only males migrate
+# Migrants spend 1 year in the opposing breeding grounds then return to their home population
+# On average 1% of the males migrate to the other breeding ground in a given season
+
+
+#   Isotopic information
+# Each individual has 3 info values:
+#   * Feeding ground (F1 or F2)
+#   * Carbon value
+#   * Nitrogen value
+#  The feeding ground is fixed at birth an inherited from the mother
+#  The carbon and nitrogen values are sampled at birth from the feeding ground of the mother. Each feeding ground is associated with a scalar distribution of these two values.
