@@ -8,7 +8,7 @@ size = [50,50]
 maxAge = 80
 minMatingAge = 6
 maxMatingAge = 60
-years = 5
+years = 20
 nb_loci = 100
 scenario_id = "1"
 
@@ -88,8 +88,7 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
     pop.evolve(
         initOps = [simuPOP.InitSex(), simuPOP.IdTagger()] +
                        [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
-                       [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)] +
-                       [simuPOP.Dumper()],
+                       [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
         # increase age by 1
         preOps = simuPOP.InfoExec('age += 1'),
         matingScheme = simuPOP.HeteroMating(
@@ -100,6 +99,7 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
                                      subPops=[(sub_population, virtual_sub_population) for sub_population in range(0, sub_population_count) for virtual_sub_population in [0,1,2]], weight=-1),
             # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
             simuPOP.RandomMating(ops=[simuPOP.MitochondrialGenoTransmitter(),
+                                      simuPOP.MendelianGenoTransmitter(),
                                       simuPOP.IdTagger(),
                                       simuPOP.PedigreeTagger()],
                                  subPops=[(sub_population, 1) for sub_population in range(0, sub_population_count)], weight=1)]),
@@ -114,7 +114,7 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
             # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
             # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
 
-#            simuPOP.Dumper(structure=False),
+            simuPOP.Dumper(structure=False),
             simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
             simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
         ],
