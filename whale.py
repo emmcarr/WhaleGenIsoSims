@@ -76,8 +76,8 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
     # 2) Receptive female (every 3 years)
     # 3) Non-receptive female
     # 4) Mature male
-    # 5) Geriatric
-    # 6) Dead
+    # 5) Dead
+    # ELC: but perhaps we can just give females a 1/3 chance of reproducing instead?
     # Note that we use a cutoff InfoSplitter here, it is also possible to
     # provide a list of values, each corresponding to a virtual subpopulation.
     # FIXME: Can we call the virtual sub populations more intuitive names than 0,1,2,3?
