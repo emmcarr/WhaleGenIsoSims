@@ -1,0 +1,182 @@
+# We used R code to initialise the mtDNA haplotype and SNP allele frequency data for the simulations.
+
+## Use mathematic distributions to estimate starting allele frequency data
+## following Vatsiou et al 2016
+## Distributions: dirichlet for mtDNA, beta for SNPs
+
+## For the mtDNA data:
+## use sample_dirichlet fuction
+## uses n, sample size and alpha, the Dirichlet distribution parameter
+## we estimate alpha = Ne*m*p
+## m = {0.1, 1, 10}
+## p = vector of haplotype frequencies
+
+library(igraph)
+library(hierfstat)
+library(adegenet)
+library(srataG)
+
+setwd("/Users/emac/Dropbox/Geniso_work/BayesianModel/initialising_code")
+
+## mtDNA haplotype frequences for SRW from Carroll et al 2018
+## randomly sample 50 samples each from NZ, AUS, PV and SAF so that bias
+## towards NZ is less of a problem
+
+NZ<-matrix(c(rep("BHA", 231), rep("BHB", 294), rep("BHC", 58), rep("BHD", 82), rep("BHE", 6),
+             rep("CHJ", 1), rep("CHK", 2), rep("P42", 12), rep("P41", 1), rep("PHB", 4), 
+             rep("P17", 1)),
+           ncol=1, nrow=692)
+NZ2<-sample(NZ) 
+
+SAF<-matrix(c(rep("BakHapBP", 1), rep("SA950085", 1), rep("SA950127", 1), rep("SA960235", 1),
+              rep("SA960243" , 1), rep("SA960312", 1), rep("SA960319", 1), rep("SA970592", 1),
+              rep("SA970615", 1), rep("SA970617", 1), rep("ValHappB", 2), rep("SA950016", 2),
+              rep("CarHapJJ", 3), rep("SA950109", 3), rep("SA960266", 3), rep("PatHap42", 4),
+              rep("ValHappJ", 4), rep("SA950033", 4), rep("SA950039", 5), rep("SA950126", 5),
+              rep("SA960250", 5), rep("ValHapAA", 6), rep("SA950020", 6), rep("SA950002", 7),
+              rep("SA950006", 8), rep("ValHapDD", 10), rep("ValHapCC", 10), rep("SA950015", 11),
+              rep("SA950028", 15), rep("ValHappK", 16), rep("SA950013", 16), rep("BakHapFF", 19),
+              rep("ValHappN", 20), rep("SA950048", 23), rep("ValHappZ", 27), rep("SA950005", 27), 
+              rep("PatHap17", 39), rep("BakHapEE", 40)), 
+            ncol=1, nrow=350)
+
+SAF2<-sample(SAF)
+
+PV<-matrix(c(rep("ValHapII", 28), rep("ValHappJ", 19), rep("ValHappK", 18), rep("PatHap42", 17),
+             rep("PatMalHB", 12), rep("ValHappA", 12), rep("ValHappB", 11), rep("ValHappD", 11),
+             rep("ValHappL", 9), rep("ValHappI", 8), rep("ValHappQ", 8), rep("BakHapAA", 6), 
+             rep("ValHappC", 6), rep("ValHappO", 6), rep("ValHappZ", 5), rep("ValHappP", 5),
+             rep("ValHappW", 5), rep("ValHappG", 4), rep("ValHappX", 3), rep("ValHapCC", 2),
+             rep("ValHappN", 2), rep("ValHapAA", 2), rep("ValHapEE", 2), rep("ValHappR", 2),
+             rep("ValHappY", 2), rep("PatHap17", 1), rep("ValHapBB", 1), rep("ValHapFF", 1)),
+           ncol=1, nrow=208)
+PV2<-sample(PV)
+
+
+AUS<-matrix(c(rep("BakHapAA", 30), rep("BakHapBP", 10), rep("BakHapCC", 16), rep("BakHapDD", 5),
+              rep("BakHapEE", 8), rep("CarHapJJ", 2), rep("BakHapFF", 1), rep("SWPJSWPJ", 2),
+              rep("PatHap42", 1), rep("PatHap17", 2)), 
+            ncol=1, nrow=77)
+
+AUS2<-sample(AUS)
+
+###################################################################################################################################### 
+## function to convert haplotype frequencies into format readable by hierfstat
+## where mat is matrix with first column haplotype number,
+## and subsequent columns frequency of each haplotype in each simulated pop
+## samp is desired sample size
+freq2genind2 <- function (mat, samp) {
+    pop = ncol(mat)-1
+    resmat <- matrix (nrow = samp, ncol = pop)
+    for (i in 1:pop) 
+      {
+      resmat[,i] <-sample(mat[,1], samp, prob = mat[,i+1], replace = TRUE)
+      resmat
+      }
+  
+    resmat
+    resmat2<-matrix(ncol = 3, nrow = pop*samp)
+    popl<-as.vector(0)
+          for (i in 1:pop) {popl<-c(popl, rep(i, samp))}
+    resmat2[,1]<-popl[2:length(popl)]
+    resmat2[,2]<-as.vector(resmat)
+    resmat2[,3]<-as.vector(resmat)
+    resmat2
+}
+
+###################################################################################################################################### 
+## dist.fst is a function that 
+## (1) calculates the alpha parameter for the Dirichlet distribution using Ne*m*freq 
+## where Ne and m are user-set and freq comes from the empirical haplotype frequency data of Carroll et al (2018)
+## (2) tests whether the FST produced falls within 10% of the desired FST value, keep the frequency
+## distribution, otherwise redo the alpha parameter calculation
+## (3) write the frequency distributions to a list in a text file if it meets the FST criteria
+  
+
+dist.fst<-function(Ne1, m1, FST, reps, pops, samp) {
+  # create empty list to hold results
+  res = 0
+  while (res < reps)
+  {
+    # sample empirical hap freq distribution
+    hapsamp<-c(sample(AUS2, 100, replace = TRUE), sample(NZ2, 100), sample(PV2, 100), sample(SAF2, 100))
+    
+    ## convert this to frequencies
+    freq<-as.vector(table(hapsamp))
+    freq=freq/sum(freq)
+    
+    ## calculate starting haplotype frequencies for given number of pops
+    s1<-sample_dirichlet(pops, (Ne1*m1*freq))
+    
+    ## what FST does this give with sample size samp
+    start_mtDNA<-cbind(1:length(freq), s1)
+    Fst.loop<-genet.dist(freq2genind2(mat = start_mtDNA, samp = samp), diploid = FALSE, method = "WC84")
+    
+    ## only keep if FST is within 10% of desired value of FST
+    if ((Fst.loop < (FST*1.1)) & (Fst.loop > (FST * 0.9)))
+    ## if it is an acceptable value, write to file
+    {
+      res = res+1
+      write.table(s1, paste(res, ".txt", sep = ""),
+                col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
+      
+     }
+    else 
+    {res = res}
+  }
+}
+
+###################################################################################################################################### 
+## to check that the code was working in the way we expected, we did some trials:
+
+## sim.fst is a function that samples from empirical haplotype frequencies (4 wintering grounds, 100 x each, hard coded atm)
+## to generate vector freq. It then calculates the alpha parameter for the Dirichlet distribution using Ne*m*freq (Ne and m are user-set),
+##  and uses this to generate haplotype frequency distributions for two simulated populations. These distributions are 
+## then sampled from samp times and the differentiation index of the two simulated populations is calculated using the
+## genet.dist function from the hierfstat package, using the particular method chosen by the user. This process is repeated
+## replicate number of times to get a distribution of differentiation indices for each combination of Ne and m.
+## the function produces a matrix with three columns; Ne and m, recording the values used in the simulation, and gen_dif, which
+## records the value of genetic differentiation recorded for each simulation
+
+sim.fst <-function(Ne1, m1, samp, replicates, method) {
+  ## create matrix to hold results, and record what values of Ne and m were used in the run
+  resmat<-matrix(nrow = replicates, ncol=3)
+  resmat[,1]<-rep(Ne1, replicates)
+  resmat[,2]<-rep(m1, replicates)
+  colnames(resmat)<-c("Ne", "m", "gen_dif")
+  
+  # start loop for each iteration in replicate number
+  for (i in 1:replicates){
+    ## first we sample from the haplotype distributions
+    hapsamp<-c(sample(AUS2, 100, replace = TRUE), sample(NZ2, 100), sample(PV2, 100), sample(SAF2, 100))
+    ## convert this to frequencies
+    freq<-as.vector(table(hapsamp))
+    freq=freq/sum(freq)
+    #assign Ne and migration rate
+    Ne <- Ne1
+    m <- m1
+    #calculate alpha parameter for Dirichlet distribution
+    alpha <- Ne*m*freq
+    ## produce initial allele frequencies
+    start_mtDNA<-cbind(1:length(freq), sample_dirichlet(2, alpha))
+    ## record genetic differentiation value for this particular simulation in results matrix
+    resmat[i,3]<-genet.dist(freq2genind2(mat = start_mtDNA, samp = samp), diploid = FALSE, method = method)
+  }
+  resmat
+}
+
+## testing the simulations
+## FST ~ 0.001
+Ne100m10_WC<-sim.fst(Ne1 = 100, m1 = 10, samp = 100, replicates = 10000, method = "WC84")
+## FST ~ 0.01
+Ne100m1_WC<-sim.fst(Ne1 = 100, m1 = 1, samp = 100, replicates = 10000, method = "WC84")
+## FST ~ 0.1
+Ne100m.1_WC<-sim.fst(Ne1 = 100, m1 = 0.1, samp = 100, replicates = 10000, method = "WC84")
+
+resmat<-matrix(nrow = 3, ncol = 3)
+colnames(resmat)<-c("Nm", "EstFst", "ObsFst")
+rownames(resmat)<-c("Ne100m10_WC","Ne100m1_WC", "Ne100m.1_WC")
+resmat[1,]<-c(100*10, (1/((2*100*10)+1)), median(Ne100m10_WC[,3]))
+resmat[2,]<-c(100, (1/((2*100)+1)), median(Ne100m1_WC[,3]))
+resmat[3,]<-c(10, (1/((2*10)+1)), median(Ne100m.1_WC[,3]))
+resmat
