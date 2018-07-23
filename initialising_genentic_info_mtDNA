@@ -98,7 +98,7 @@ dist.fst<-function(Ne1, m1, FST, reps, pops, samp) {
   res = 0
   while (res < reps)
   {
-    # sample empirical hap freq distribution
+    # sample empirical hap freq distribution: this is changed depending on what we are simulating
     hapsamp<-c(sample(AUS2, 100, replace = TRUE), sample(NZ2, 100), sample(PV2, 100), sample(SAF2, 100))
     
     ## convert this to frequencies
