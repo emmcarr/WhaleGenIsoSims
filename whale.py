@@ -19,10 +19,11 @@ variance_N = [0.25, 0.49]
 numberOfFeedingGrounds = 2
 
 def computeRatios(pop):
-    i = 0
+    # The feeding ground is fixed at birth (inherited from mother)
+    # The C and N values are sampled from a distribution based on the feeding ground each year
     for i in range(0, pop.numSubPop()):
         for indiv in pop.individuals(i):
-            # The 'feeding_ground' info field is a float. We cannot use that as an array index. Convert to an int
+            # The 'feeding_ground' info field is a float. We cannot use that as an array index so convert to an int
             feeding_ground = int(indiv.info('feeding_ground'))
             indiv.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
             indiv.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
@@ -31,7 +32,7 @@ def computeRatios(pop):
 
 def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, gen):
     '''
-    sub_population_size   A vector giving the population sizes for each sub-population
+    sub_population_size   A vector giving the population sizes for each sub-population. The subpopulations determine which breeding ground an individual belongs to
     minMatingAge          minimal mating age.
     maxMatingAge          maximal mating age. Individuals older than this are effectively dead
     years                 number of years to simulate
@@ -100,9 +101,11 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
     # ELC: but perhaps we can just give females a 1/3 chance of reproducing instead?
     # Note that we use a cutoff InfoSplitter here, it is also possible to
     # provide a list of values, each corresponding to a virtual subpopulation.
-    # FIXME: Can we call the virtual sub populations more intuitive names than 0,1,2,3?
-    pop.setVirtualSplitter(simuPOP.InfoSplitter('age',
-        cutoff=[minMatingAge, maxMatingAge + 0.1]))
+    pop.setVirtualSplitter(simuPOP.CombinedSplitter([
+        simuPOP.ProductSplitter([simuPOP.SexSplitter(),
+                                 simuPOP.InfoSplitter('age', cutoff=[minMatingAge, maxMatingAge + 0.1], names=['juvenile', 'mature', 'dead'])])],
+                                 vspMap = [[0], [1], [2], [3], [4], [5], [0, 1, 3, 4], [1,4]],
+                                  names = ['Juvenile Male', 'Mature Male', 'Dead Male', 'Juvenile Female', 'Mature Female', 'Dead Female', 'Not dead yet', 'Active']))
 
 
     pop.evolve(
@@ -116,14 +119,14 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
             # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
             # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
             [simuPOP.CloneMating(ops=[simuPOP.CloneGenoTransmitter(chroms=[0,1])],
-                                     subPops=[(sub_population, virtual_sub_population) for sub_population in range(0, sub_population_count) for virtual_sub_population in [0,1]], weight=-1),
+                                     subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], weight=-1),
             # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
             simuPOP.RandomMating(ops=[simuPOP.MitochondrialGenoTransmitter(),
                                       simuPOP.MendelianGenoTransmitter(),
                                       simuPOP.IdTagger(),
                                       simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['feeding_ground']),
                                       simuPOP.PedigreeTagger()],
-                                 subPops=[(sub_population, 1) for sub_population in range(0, sub_population_count)], weight=1)]),
+                                 subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)], weight=1)]),
         postOps = [
 
         # Determine the isotopic ratios in individuals
@@ -145,6 +148,11 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
         ],
         gen = years
     )
+
+    #simuPOP.dump(pop, width=3, loci=[], subPops=[(simuPOP.ALL_AVAIL, simuPOP.ALL_AVAIL)], max=10, structure=False);
+    #return
+
+
 
     ped = simuPOP.Pedigree(pop);
     print("This is the pedigree stuff")
@@ -177,11 +185,3 @@ if __name__ == '__main__':
 # Migrants spend 1 year in the opposing breeding grounds then return to their home population
 # On average 1% of the males migrate to the other breeding ground in a given season
 
-
-#   Isotopic information
-# Each individual has 3 info values:
-#   * Feeding ground (F1 or F2)
-#   * Carbon value
-#   * Nitrogen value
-#  The feeding ground is fixed at birth an inherited from the mother
-#  The carbon and nitrogen values are sampled at birth from the feeding ground of the mother. Each feeding ground is associated with a scalar distribution of these two values.
