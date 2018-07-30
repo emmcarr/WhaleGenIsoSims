@@ -2,22 +2,38 @@
 
 import simuPOP
 import random
+import numpy
 
-
-size = [50,50]
-maxAge = 80
+size = [100,100]
 minMatingAge = 6
-maxMatingAge = 60
-years = 20
+maxMatingAge = 50
+years = 200
 nb_loci = 100
 scenario_id = "1"
 
-def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMatingAge, gen):
+mean_C = [16.7, 20.5]
+variance_C = [3.24, 2.89]
+mean_N = [5.5, 8.7]
+variance_N = [0.25, 0.49]
+
+numberOfFeedingGrounds = 2
+
+def computeRatios(pop):
+    i = 0
+    for i in range(0, pop.numSubPop()):
+        for indiv in pop.individuals(i):
+            # The 'feeding_ground' info field is a float. We cannot use that as an array index. Convert to an int
+            feeding_ground = int(indiv.info('feeding_ground'))
+            indiv.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
+            indiv.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
+    return True
+
+
+def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, gen):
     '''
     sub_population_size   A vector giving the population sizes for each sub-population
-    maxAge                maximum age. individuals with age > maxAge will die.
     minMatingAge          minimal mating age.
-    maxMatingAge          maximal mating age.
+    maxMatingAge          maximal mating age. Individuals older than this are effectively dead
     years                 number of years to simulate
     '''
 
@@ -55,21 +71,25 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
                                  ploidy=2,
                                  loci=[nb_loci, 1],
                                  ancGen=2,
-                                 infoFields=['age', 'ind_id', 'father_id', 'mother_id'],
+                                 infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground'],
                                  subPopNames = sub_population_names,
                                  chromTypes=[simuPOP.AUTOSOME, simuPOP.MITOCHONDRIAL])
     sub_population_names = tuple(sub_population_names)
 
-    # Create an attribute on each individual called 'age'. Set it to a random number between 0 and maxAge
+    # Create an attribute on each individual called 'age'. Set it to a random number between 0 and maxMatingAge
     # Note that size is a vector - the size of each population. We have to sum these to get the total number of individuals
     individual_count = sum(sub_population_size)
-    pop.setIndInfo([random.randint(0, maxAge) for x in range(individual_count)], 'age')
+
+    # Assign a random age to each individual
+    pop.setIndInfo([random.randint(0, maxMatingAge) for x in range(individual_count)], 'age')
+    # Assign a random feeding ground to each individual
+    pop.setIndInfo([random.randint(0, numberOfFeedingGrounds-1) for x in range(individual_count)], 'feeding_ground')
+
 
     # Currently we have these virtual subpopulations:
-    # age < minMatingAge
-    # age >= minMatingAge and age < maxMatingAge + 0.1 (age <= maxMatingAge)
-    # age >= maxMatingAge + 0.1 and age < maxAge + 0.1 (maxMatingAge < age <= maxAge)
-    # age >= maxAge + 0.1 (age > maxAge)
+    # age < minMatingAge (juvenile)
+    # age >= minMatingAge and age < maxMatingAge + 0.1 (age <= maxMatingAge) (mature)
+    # age >= maxMatingAge (dead)
     #
     # Ideally we would want something like this:
     # 1) Immature
@@ -82,7 +102,7 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
     # provide a list of values, each corresponding to a virtual subpopulation.
     # FIXME: Can we call the virtual sub populations more intuitive names than 0,1,2,3?
     pop.setVirtualSplitter(simuPOP.InfoSplitter('age',
-        cutoff=[minMatingAge, maxMatingAge + 0.1, maxAge + 0.1]))
+        cutoff=[minMatingAge, maxMatingAge + 0.1]))
 
 
     pop.evolve(
@@ -96,27 +116,32 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
             # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
             # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
             [simuPOP.CloneMating(ops=[simuPOP.CloneGenoTransmitter(chroms=[0,1])],
-                                     subPops=[(sub_population, virtual_sub_population) for sub_population in range(0, sub_population_count) for virtual_sub_population in [0,1,2]], weight=-1),
+                                     subPops=[(sub_population, virtual_sub_population) for sub_population in range(0, sub_population_count) for virtual_sub_population in [0,1]], weight=-1),
             # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
             simuPOP.RandomMating(ops=[simuPOP.MitochondrialGenoTransmitter(),
                                       simuPOP.MendelianGenoTransmitter(),
                                       simuPOP.IdTagger(),
+                                      simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['feeding_ground']),
                                       simuPOP.PedigreeTagger()],
                                  subPops=[(sub_population, 1) for sub_population in range(0, sub_population_count)], weight=1)]),
         postOps = [
+
+        # Determine the isotopic ratios in individuals
+        simuPOP.PyOperator(func=computeRatios)
+
             # count the individuals in each virtual subpopulation
-            # simuPOP.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (0,3), (1,0), (1, 1), (1, 2), (1, 3)]),
+            #simuPOP.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (1,0), (1, 1), (1, 2)]),
             # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
-            # simuPOP.PyEval(r"'Size of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))")
+            #simuPOP.PyEval(r"'Size of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))")
 
             # Alternatively, calculate the Fst
             # FIXME: How does this actually work? Does it work for > 2 populations? I don't really understand it yet
             # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
             # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
 
-            simuPOP.Dumper(structure=False),
-            simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
-            simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
+#            simuPOP.Dumper(structure=False),
+#            simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
+#            simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
         ],
         gen = years
     )
@@ -130,7 +155,7 @@ def runSimulation(scenario_id, sub_population_size, maxAge, minMatingAge, maxMat
 
 
 if __name__ == '__main__':
-    runSimulation(scenario_id, size, maxAge, minMatingAge, maxMatingAge, years)
+    runSimulation(scenario_id, size, minMatingAge, maxMatingAge, years)
 
 
 # Plan
