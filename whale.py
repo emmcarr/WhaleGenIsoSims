@@ -7,7 +7,7 @@ import numpy
 size = [100,100]
 minMatingAge = 6
 maxMatingAge = 50
-years = 4
+years = 60
 nb_loci = 100
 scenario_id = "1"
 
@@ -55,6 +55,14 @@ def init_native_breeding_grounds(pop):
         for individual in pop.individuals(i):
             individual.setInfo(i, 'native_breeding_ground');
     return True
+
+def configure_new_population_size(gen, pop):
+    # It is critical to specify the sub population sizes independently of each other. Each sub-population may be a different size
+    # For the first 10 generations, we expand the next generation by 20%. Thereafter, the subpopulation size is kept constant
+    if (gen < 10):
+        return [pop.subPopSize(0) * 1.20, pop.subPopSize(1) * 1.20]
+    else:
+        return [pop.subPopSize(0), pop.subPopSize(1)]
 
 def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, gen):
     '''
@@ -140,12 +148,13 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                        [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
         # increase age by 1
         preOps = [simuPOP.InfoExec('age += 1')],
-        matingScheme = simuPOP.HeteroMating(
+        matingScheme = simuPOP.HeteroMating([
             # age <= maxAge, copy to the next generation (weight=-1)
             # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
             # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
-            [simuPOP.CloneMating(ops=[simuPOP.CloneGenoTransmitter(chroms=[0,1])],
-                                     subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], weight=-1),
+            simuPOP.CloneMating(ops=[simuPOP.CloneGenoTransmitter(chroms=[0,1])],
+                                subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)],
+                                weight=-1),
             # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
             simuPOP.RandomMating(ops=[simuPOP.MitochondrialGenoTransmitter(),
                                       simuPOP.MendelianGenoTransmitter(),
@@ -153,7 +162,10 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                                       simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['feeding_ground']),
                                       simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['native_breeding_ground']),
                                       simuPOP.PedigreeTagger()],
-                                 subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)], weight=1)]),
+                                 subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
+                                 weight=1)],
+                subPopSize=configure_new_population_size
+                                                ),
         postOps = [
 
         # Determine the isotopic ratios in individuals
@@ -176,9 +188,8 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
         gen = years
     )
 
-    simuPOP.dump(pop, width=3, loci=[], subPops=[(simuPOP.ALL_AVAIL, simuPOP.ALL_AVAIL)], max=1000, structure=False);
-    return
-
+    #simuPOP.dump(pop, width=3, loci=[], subPops=[(simuPOP.ALL_AVAIL, simuPOP.ALL_AVAIL)], max=1000, structure=False);
+    #return
 
 
     ped = simuPOP.Pedigree(pop);
