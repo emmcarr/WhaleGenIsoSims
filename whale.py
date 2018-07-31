@@ -7,7 +7,7 @@ import numpy
 size = [100,100]
 minMatingAge = 6
 maxMatingAge = 50
-years = 200
+years = 4
 nb_loci = 100
 scenario_id = "1"
 
@@ -15,20 +15,46 @@ mean_C = [16.7, 20.5]
 variance_C = [3.24, 2.89]
 mean_N = [5.5, 8.7]
 variance_N = [0.25, 0.49]
+deviant_proportion = 0.1
 
 numberOfFeedingGrounds = 2
 
-def computeRatios(pop):
-    # The feeding ground is fixed at birth (inherited from mother)
-    # The C and N values are sampled from a distribution based on the feeding ground each year
+def postop_processing(pop):
     for i in range(0, pop.numSubPop()):
-        for indiv in pop.individuals(i):
+        for individual in pop.individuals(i):
+            # The feeding ground is fixed at birth (inherited from mother)
+            # The C and N values are sampled from a distribution based on the feeding ground each year
             # The 'feeding_ground' info field is a float. We cannot use that as an array index so convert to an int
-            feeding_ground = int(indiv.info('feeding_ground'))
-            indiv.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
-            indiv.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
+            feeding_ground = int(individual.info('feeding_ground'))
+            individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
+            individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
+
+            # print("Individual ", individual.info('ind_id'), " has native breeding ground ", individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
+            # Migration
+            # Initially, set the migrate_to to the current population of the individual
+            individual.setInfo(i, 'migrate_to')
+            # If the individual is a male, then we can optionally migrate them using the migrate_to info field
+            if individual.sex() == simuPOP.MALE and individual.info('age') >= minMatingAge:
+                # If the individual has already migrated, move them back
+                if individual.info('native_breeding_ground') != i:
+                    print("Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
+                    individual.setInfo(individual.info('native_breeding_ground'), 'migrate_to')
+                # Otherwise, migrate them to another population with a probabilistic model
+                elif numpy.random.uniform() < deviant_proportion:
+                    # Individual will migrate.
+                    new_population = (i + 1) % 2
+                    print("Individual ", individual.info('ind_id'), " will migrate to ", new_population)
+                    individual.setInfo(new_population, 'migrate_to')
+    print('end of step')
     return True
 
+def init_native_breeding_grounds(pop):
+    # Assign the native breeding ground to each individual. I don't know how to do this except by doing it individually
+    # Fortunately, we can just inherit this maternally, so it only has to be run once
+    for i in range(0, pop.numSubPop()):
+        for individual in pop.individuals(i):
+            individual.setInfo(i, 'native_breeding_ground');
+    return True
 
 def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, gen):
     '''
@@ -72,7 +98,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                                  ploidy=2,
                                  loci=[nb_loci, 1],
                                  ancGen=2,
-                                 infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground'],
+                                 infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'],
                                  subPopNames = sub_population_names,
                                  chromTypes=[simuPOP.AUTOSOME, simuPOP.MITOCHONDRIAL])
     sub_population_names = tuple(sub_population_names)
@@ -109,11 +135,11 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
 
 
     pop.evolve(
-        initOps = [simuPOP.InitSex(), simuPOP.IdTagger()] +
+        initOps = [simuPOP.InitSex(), simuPOP.IdTagger(), simuPOP.PyOperator(func=init_native_breeding_grounds)] +
                        [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
                        [simuPOP.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
         # increase age by 1
-        preOps = simuPOP.InfoExec('age += 1'),
+        preOps = [simuPOP.InfoExec('age += 1')],
         matingScheme = simuPOP.HeteroMating(
             # age <= maxAge, copy to the next generation (weight=-1)
             # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
@@ -125,13 +151,14 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                                       simuPOP.MendelianGenoTransmitter(),
                                       simuPOP.IdTagger(),
                                       simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['feeding_ground']),
+                                      simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['native_breeding_ground']),
                                       simuPOP.PedigreeTagger()],
                                  subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)], weight=1)]),
         postOps = [
 
         # Determine the isotopic ratios in individuals
-        simuPOP.PyOperator(func=computeRatios)
-
+        simuPOP.PyOperator(func=postop_processing),
+        simuPOP.Migrator(mode=simuPOP.BY_IND_INFO)
             # count the individuals in each virtual subpopulation
             #simuPOP.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (1,0), (1, 1), (1, 2)]),
             # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
@@ -149,8 +176,8 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
         gen = years
     )
 
-    #simuPOP.dump(pop, width=3, loci=[], subPops=[(simuPOP.ALL_AVAIL, simuPOP.ALL_AVAIL)], max=10, structure=False);
-    #return
+    simuPOP.dump(pop, width=3, loci=[], subPops=[(simuPOP.ALL_AVAIL, simuPOP.ALL_AVAIL)], max=1000, structure=False);
+    return
 
 
 
