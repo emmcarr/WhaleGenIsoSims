@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import simuPOP
+from simuPOP.sampling import drawRandomSample
+from simuPOP.utils import export
 import random
 import numpy
 
@@ -18,6 +20,12 @@ variance_N = [0.25, 0.49]
 deviant_proportion = 0.1
 
 numberOfFeedingGrounds = 2
+sample_count = 60
+
+# For the first 10 generations, we expand the next generation by 7% (this leads to a rough doubling after 10 years).
+# After the population_growing_period, each subpopulation size is kept constant
+population_growth_rate = 1.07
+population_growing_period = 10 # in years
 
 def postop_processing(pop):
     for i in range(0, pop.numSubPop()):
@@ -35,17 +43,16 @@ def postop_processing(pop):
             individual.setInfo(i, 'migrate_to')
             # If the individual is a male, then we can optionally migrate them using the migrate_to info field
             if individual.sex() == simuPOP.MALE and individual.info('age') >= minMatingAge:
-                # If the individual has already migrated, move them back
+                # If the individual has already migrated, always move them back
                 if individual.info('native_breeding_ground') != i:
-                    print("Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
+                    #print("Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
                     individual.setInfo(individual.info('native_breeding_ground'), 'migrate_to')
                 # Otherwise, migrate them to another population with a probabilistic model
                 elif numpy.random.uniform() < deviant_proportion:
                     # Individual will migrate.
                     new_population = (i + 1) % 2
-                    print("Individual ", individual.info('ind_id'), " will migrate to ", new_population)
+                    #print("Individual ", individual.info('ind_id'), " will migrate to ", new_population)
                     individual.setInfo(new_population, 'migrate_to')
-    print('end of step')
     return True
 
 def init_native_breeding_grounds(pop):
@@ -58,9 +65,8 @@ def init_native_breeding_grounds(pop):
 
 def configure_new_population_size(gen, pop):
     # It is critical to specify the sub population sizes independently of each other. Each sub-population may be a different size
-    # For the first 10 generations, we expand the next generation by 20%. Thereafter, the subpopulation size is kept constant
-    if (gen < 10):
-        return [pop.subPopSize(0) * 1.20, pop.subPopSize(1) * 1.20]
+    if (gen < population_growing_period):
+        return [pop.subPopSize(0) * population_growth_rate, pop.subPopSize(1) * population_growth_rate]
     else:
         return [pop.subPopSize(0), pop.subPopSize(1)]
 
@@ -170,7 +176,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
 
         # Determine the isotopic ratios in individuals
         simuPOP.PyOperator(func=postop_processing),
-        simuPOP.Migrator(mode=simuPOP.BY_IND_INFO)
+        simuPOP.Migrator(mode=simuPOP.BY_IND_INFO),
             # count the individuals in each virtual subpopulation
             #simuPOP.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (1,0), (1, 1), (1, 2)]),
             # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
@@ -182,8 +188,8 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
             # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
 
 #            simuPOP.Dumper(structure=False),
-#            simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
-#            simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
+            simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
+            simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
         ],
         gen = years
     )
@@ -192,11 +198,39 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
     #return
 
 
+
     ped = simuPOP.Pedigree(pop);
     print("This is the pedigree stuff")
     simuPOP.dump(pop);
 
-    return;
+    # Now sample the individuals
+    sample = drawRandomSample(pop, sizes=[sample_count]*sub_population_count)
+
+    # Generate the two files
+    with open('mixfile.txt', 'w') as output:
+        print(sub_population_count, nb_loci, 2, 1, file=output)
+        for i in range(0, nb_loci):
+            print('Loc', i+1, sep='_', file=output);
+        for individual in sample.individuals():
+            genotype = individual.genotype();
+            print(int(individual.info('native_breeding_ground')+1), end=' ', file=output)
+            for i in range(0, nb_loci):
+                print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=output)
+            print(file=output);
+
+    with open('haploiso.txt', 'w') as output:
+        print("sex, haplotype, iso1, iso2, native_ground", file=output);
+        for individual in sample.individuals():
+            genotype = individual.genotype();
+            print(1 if individual.sex() == 1 else 0,
+                  genotype[nb_loci],
+                  individual.info('carbon'),
+                  individual.info('nitrogen'),
+                  int(individual.info('native_breeding_ground')),
+                  file=output, sep=' ')
+
+    return
+
 
 
 
