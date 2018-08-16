@@ -189,7 +189,6 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
             # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
             # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
 
-#            simuPOP.Dumper(structure=False),
             simuPOP.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
             simuPOP.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10)
         ],
@@ -208,6 +207,21 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
     # Now sample the individuals
     sample = drawRandomSample(pop, sizes=[sample_count]*sub_population_count)
 
+    # Print out the allele frequency data
+    simuPOP.stat(sample, alleleFreq=simuPOP.ALL_AVAIL)
+    frequencies = sample.dvars().alleleFreq;
+    with open('freq.txt', 'w') as freqfile:
+        index = 0
+        for locus in frequencies:
+            if (locus == nb_loci):
+                continue
+            if (len(frequencies[locus]) < 2):
+                continue
+            print(index, end=' ', file=freqfile)
+            index = index + 1
+            for allele in frequencies[locus]:
+                print(frequencies[locus][allele], end=' ', file=freqfile)
+            print(file=freqfile)
 
     # We want to remove monoallelic loci. This means a position in the genotype for which all individuals have the same value in both alleles
     # To implement this we will build up a list of loci that get ignored when we dump out the file. Generally speaking, if we add all the values up
@@ -244,7 +258,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                     if i not in monoallelic_loci:
                         print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=mixfile)
                 print(file=mixfile);
-    return
+    return sample
 
 
 
