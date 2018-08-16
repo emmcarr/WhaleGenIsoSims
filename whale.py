@@ -5,6 +5,8 @@ from simuPOP.sampling import drawRandomSample
 from simuPOP.utils import export
 import random
 import numpy
+from operator import add
+
 
 size = [100,100]
 minMatingAge = 6
@@ -206,29 +208,42 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
     # Now sample the individuals
     sample = drawRandomSample(pop, sizes=[sample_count]*sub_population_count)
 
+
+    # We want to remove monoallelic loci. This means a position in the genotype for which all individuals have the same value in both alleles
+    # To implement this we will build up a list of loci that get ignored when we dump out the file. Generally speaking, if we add all the values up
+    # then either they will sum to 0 (if all individuals have type 0) or to the number of individuals * 2 (if all individuals have type 1)
+    geno_sum = [0] * (nb_loci + 1) * 2;
+    for individual in sample.individuals():
+        geno_sum = list(map(add, geno_sum, individual.genotype()))
+    final_sum = list(map(add, geno_sum[:(nb_loci+1)], geno_sum[(nb_loci+1):]))
+
+    monoallelic_loci = [];
+    for i in range(0, nb_loci):
+        if final_sum[i] == 0 or final_sum[i] == sample_count*sub_population_count*2:
+            monoallelic_loci = [i] + monoallelic_loci
+    monoallelic_loci = sorted(monoallelic_loci, reverse=True)
+
+    nb_ignored_loci = len(monoallelic_loci)
     # Generate the two files
-    with open('mixfile.txt', 'w') as output:
-        print(sub_population_count, nb_loci, 2, 1, file=output)
-        for i in range(0, nb_loci):
-            print('Loc', i+1, sep='_', file=output);
-        for individual in sample.individuals():
-            genotype = individual.genotype();
-            print(int(individual.info('native_breeding_ground')+1), end=' ', file=output)
-            for i in range(0, nb_loci):
-                print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=output)
-            print(file=output);
-
-    with open('haploiso.txt', 'w') as output:
-        print("sex, haplotype, iso1, iso2, native_ground", file=output);
-        for individual in sample.individuals():
-            genotype = individual.genotype();
-            print(1 if individual.sex() == 1 else 0,
-                  genotype[nb_loci],
-                  individual.info('carbon'),
-                  individual.info('nitrogen'),
-                  int(individual.info('native_breeding_ground')),
-                  file=output, sep=' ')
-
+    with open('mixfile.txt', 'w') as mixfile:
+        with open('haploiso.txt', 'w') as haplofile:
+            print(sub_population_count, nb_loci - nb_ignored_loci, 2, 1, file=mixfile)
+            print("sex, haplotype, iso1, iso2, native_ground", file=haplofile);
+            for i in range(0, nb_loci - nb_ignored_loci):
+                print('Loc', i+1, sep='_', file=mixfile);
+            for individual in sample.individuals():
+                genotype = individual.genotype();
+                print(1 if individual.sex() == 1 else 0,
+                      genotype[nb_loci],
+                      individual.info('carbon'),
+                      individual.info('nitrogen'),
+#                      int(individual.info('native_breeding_ground')),
+                      file=haplofile, sep=' ')
+                print(int(individual.info('native_breeding_ground')+1), end=' ', file=mixfile)
+                for i in range(0, nb_loci):
+                    if i not in monoallelic_loci:
+                        print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=mixfile)
+                print(file=mixfile);
     return
 
 
