@@ -105,16 +105,17 @@ dist.fst<-function(Ne1, m1, FST, reps, pops, samp) {
     freq<-as.vector(table(hapsamp))
     freq=freq/sum(freq)
     
-    ## calculate starting haplotype frequencies for given number of pops
+    ## (1) calculate starting haplotype frequencies for given number of pops
     s1<-sample_dirichlet(pops, (Ne1*m1*freq))
     
-    ## what FST does this give with sample size samp
+    ## (2) what FST does this give with sample size samp
     start_mtDNA<-cbind(1:length(freq), s1)
     Fst.loop<-genet.dist(freq2genind2(mat = start_mtDNA, samp = samp), diploid = FALSE, method = "WC84")
     
     ## only keep if FST is within 10% of desired value of FST
     if ((Fst.loop < (FST*1.1)) & (Fst.loop > (FST * 0.9)))
-    ## if it is an acceptable value, write to file
+    
+    ## (3) if it is an acceptable value, write to file
     {
       res = res+1
       write.table(s1, paste(res, ".txt", sep = ""),
@@ -125,6 +126,153 @@ dist.fst<-function(Ne1, m1, FST, reps, pops, samp) {
     {res = res}
   }
 }
+
+###################################################################################################################################### 
+###################################################################################################################################### 
+## modelling SNP data as a beta distribution
+###################################################################################################################################### 
+###################################################################################################################################### 
+
+## Step 1: Get empirical data from which to generate the simulated data
+## used trial dataset as starting point for simulations for IndoPac and South Atlantic
+
+#Bash script
+
+#!/bin/bash 
+#$ -cwd 
+#$ -j y
+#$ -S /bin/bash 
+#$ -V
+#$ -N IndoPacAlleleFreq ## job name
+#$ -q highmemory.q
+#$ -pe multi 4 # the script itself will command 3 processors in parallel, this can be referred to as NSLOTS in the commandline invocation
+
+
+# load 
+#module load stacks
+module load stacks/2.0Beta9
+
+## analyse single file with gstacks to get alignment and loci statistics
+## recoded popmap so there is only one pop per ocean basin
+populations -P ./stacksv2/gstacksMay18/Trial_mapq10_clip0.1_varalpha0.01_gtalpha0.01/ \
+-M ./stacksv2/gstacksMay18/IndoPac/popmap_refcat_IndoPac.txt \
+-O ./stacksv2/gstacksMay18/IndoPac/ \
+-W ./stacksv2/gstacksMay18/Trial_mapq10_clip0.1_varalpha0.01_gtalpha0.01/whitelistv3 \
+-t $NSLOTS -p 2 -r 0.95 --vcf --hwe --min_maf 0.05 --genepop --write_random_snp --merge_sites --renz hindIII
+
+
+# module load vcftools/0.1.12a - check that the loci are bi-allelic
+vcftools --vcf populations.snps.vcf --min-alleles 2 --max-alleles 2
+
+## export from STACKS using genepop format; import into R and calculate allele freq
+## this works, but we want the allele frequencies for the region overall.
+## so removed the divide in the file between the pops and reloaded
+
+library (hierfstat)
+library(adegenet)
+library(PopGenReport)
+# read in genepop file of trial NZ and Australian SNP data
+indopac.genepop<-read.genepop(file = "/Users/emac/Dropbox/Geniso_work/BayesianModel/initialising_code/IndoPac/BothPop/populations.snps.gen",
+                              ncode = 2)
+
+# creates SNP allele frequency data from the genepop file
+# geneind is a genind object imported into R
+# sample size is the number of loci you want allele frequencies from
+
+snpfreq.func<-function(genind, sample.size){
+    # create matrix to hold results
+    res<-matrix(nrow = sample.size, ncol = 1)
+    # for number of samples, sum the columns to get allele counts - but only every second one since there are two 
+    # alleles per locus. Then / by 80 to get frequency and right to results matrix
+    for (x in 1:sample.size) 
+      {
+      t1<-colSums(genind$tab[1:40,1:(2*sample.size)], na.rm = TRUE)
+      res[x,1]<-t1[x*2]/80
+    }
+    res
+}
+
+###################################################################################################################################### 
+# Step 2: create function to calculate beta distribution to sample starting SNP allele frequencies from and then test FST values
+
+## beta.dist.func
+## (1) calculates the alpha and beta parameters for the beta distribution using:
+## alpha <- (4*Ne1)*m1*p
+## beta <- (4*Ne1)*m1*(1-p)
+## one distribution calculated for each population, length loc.number of loci
+## where Ne and m are user-set
+## p is generated using empirical SNP data from genind file
+##
+## (2) generates a sample of size samp.size for each population using the beta distribution from (1)
+## 
+## (3) calculates FST value for the samples
+##
+## (4) if calculated FST value is +/-10% from desired FST value, then the distributions are written to file
+## this is done
+
+## in this function Ne1 and m1 control the shape of the beta distribution along with empirical data from genind
+## the number of populations (pop.number) and sample size (samp.size) are user-set, as is loc.number but be aware
+## that if it is more than in your genind it will resample the loci.
+## set your desired FST and number of simulation replicates (reps) that you want ouptutted
+
+beta.dist.func<-function (Ne1, m1, pop.number, samp.size, loc.number, FST, genind, reps){
+  ## set up beta distribution parameters
+  res = 0
+  while (res < reps) {
+      ## calculate frequency distribution for SNPs
+      p<-snpfreq.func(genind, sample.size = loc.number)
+      alpha <- (4*Ne1)*m1*p
+      beta <- (4*Ne1)*m1*(1-p)
+  
+      ##generate distribution for each population
+      dist.mat<-matrix(nrow = pop.number, ncol = loc.number)
+      for (pop in 1:pop.number)
+              {
+                dist.mat[pop,]<-as.vector((rbeta(loc.number, shape1 = alpha, shape2 = beta)))
+                  }
+  
+  ## now we generate samples from the frequencies
+  ## create a matrix for use with hierfstat function genet.dist to calculate fst
+  ## the first column is population number
+  ## subsequent columns are one row per sample and one column per locus
+      resmat<-matrix(nrow = samp.size*pop.number, ncol = loc.number*2+1)
+      resmat[,1]<-as.vector(c(sort(rep(1:pop.number, samp.size))))
+  ## this works for one population. need to loop it for second population that starts on row samp.size+1
+  ## population 2 needs to start after sample size for population 1 filled in
+          for (pop in 1:pop.number) {
+              for (i in 1:samp.size) {
+                 for (j in 1:loc.number) {
+      ## generating 2 alleles per sample per locus
+                          resmat[(i+((pop-1)*samp.size)),(j*2)] <-sample(c(10,20), 1, 
+                                                                        prob = c(dist.mat[pop,j], 1-dist.mat[pop,j]), 
+                                                                        replace = TRUE)
+                         resmat[(i+((pop-1)*samp.size)),((j*2)+1)] <-sample(c(10,20), 1, 
+                                                                            prob = c(dist.mat[pop,j], 1-dist.mat[pop,j]), 
+                                                                            replace = TRUE)
+                                          }
+    
+                                      }
+                                  }
+      ## calculate FST given sampled data generated
+      Fst.loop<-genet.dist(resmat, diploid = FALSE, method = "WC84")
+        ## if given FST is within the acceptable limits write it to file
+        if ((Fst.loop < (FST*1.1)) & (Fst.loop > (FST * 0.9)))
+            {
+              res = res+1
+               write.table(t(dist.mat), paste("SNP_", res, ".txt", sep = ""),
+              col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
+  
+            }
+              ## otherwise start again
+              else 
+              {res = res}
+            }
+          }
+
+
+
+
+
 
 ###################################################################################################################################### 
 ## to check that the code was working in the way we expected, we did some trials:
@@ -180,3 +328,5 @@ resmat[1,]<-c(100*10, (1/((2*100*10)+1)), median(Ne100m10_WC[,3]))
 resmat[2,]<-c(100, (1/((2*100)+1)), median(Ne100m1_WC[,3]))
 resmat[3,]<-c(10, (1/((2*10)+1)), median(Ne100m.1_WC[,3]))
 resmat
+
+
