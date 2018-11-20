@@ -7,23 +7,29 @@ import random
 import numpy
 from operator import add
 
-
-size = [100,100]
-minMatingAge = 6
-maxMatingAge = 50
+## set parameters for simulation - breeding ground variables
+size = [100,100] ## size of each of the two populations
+minMatingAge = 6 ## minimum age at first reproduction
+maxMatingAge = 50 ## max age of reproduction
 years = 60
-nb_loci = 100
+nb_loci = 100 ## number of loci to simulate
 scenario_id = "1"
 
-mean_C = [16.7, 20.5]
+## setting up the feeding ground variables
+## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
+## deviant proportion: proportion of males that will go to non-natal wintering ground from feeding ground
+mean_C = [16.7, 20.5] 
 variance_C = [3.24, 2.89]
 mean_N = [5.5, 8.7]
 variance_N = [0.25, 0.49]
 deviant_proportion = 0.1
 
+## Sample count is number of samples taken per wintering ground
 numberOfFeedingGrounds = 2
 sample_count = 60
 
+# Needed a way to ensure that the simulations begin with whales that are related and show correlation between 
+# SI and genetic data. 
 # For the first 10 generations, we expand the next generation by 7% (this leads to a rough doubling after 10 years).
 # After the population_growing_period, each subpopulation size is kept constant
 population_growth_rate = 1.07
