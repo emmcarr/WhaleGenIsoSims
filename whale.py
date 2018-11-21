@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+## this code is to generate simulated whale populations that have mtDNA, SNP genotypes and stable isotope profiles
+## the code generates two subpopulations in simupop that correspond to whale wintering grounds
+## virtual subpopulations (VSPs) are used to represent feeding ground and age-sex classes
+
 import simuPOP
 from simuPOP.sampling import drawRandomSample
 from simuPOP.utils import export
@@ -7,17 +11,17 @@ import random
 import numpy
 from operator import add
 
-## set parameters for simulation - breeding ground variables
-size = [100,100] ## size of each of the two populations
+## set parameters for simulation - breeding ground which are subpopulations in simupop terms
+size = [100,100] ## size of each of the two subpopulations
 minMatingAge = 6 ## minimum age at first reproduction
 maxMatingAge = 50 ## max age of reproduction
-years = 60
+years = 60 
 nb_loci = 100 ## number of loci to simulate
 scenario_id = "1"
 
 ## setting up the feeding ground variables
 ## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
-## deviant proportion: proportion of males that will go to non-natal wintering ground from feeding ground
+## deviant proportion: proportion of males that will go to non-natal wintering ground for one winter/breeding opportunity
 mean_C = [16.7, 20.5] 
 variance_C = [3.24, 2.89]
 mean_N = [5.5, 8.7]
@@ -29,7 +33,7 @@ numberOfFeedingGrounds = 2
 sample_count = 60
 
 # Needed a way to ensure that the simulations begin with whales that are related and show correlation between 
-# SI and genetic data. 
+# SI and genetic data. Did this by rapidly expanding population, creating many offspring
 # For the first 10 generations, we expand the next generation by 7% (this leads to a rough doubling after 10 years).
 # After the population_growing_period, each subpopulation size is kept constant
 population_growth_rate = 1.07
@@ -114,7 +118,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
 
     # Now we can create the population. We want to give each population a population name, starting from A
     sub_population_names = list(map(chr, range(65, 65+sub_population_count)))
-    # FIXME: Can subPopNames be a tuple here? ELC: could we set number of sub_pops as a global variable?
+    
     # We have two chromosomes. The first is an autosome with nb_loci loci, and the second is the mitochondrial chromosome with 1 locus
     pop = simuPOP.Population(sub_population_size,
                                  ploidy=2,
@@ -146,7 +150,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
     # 3) Non-receptive female
     # 4) Mature male
     # 5) Dead
-    # ELC: but perhaps we can just give females a 1/3 chance of reproducing instead?
+    # 
     # Note that we use a cutoff InfoSplitter here, it is also possible to
     # provide a list of values, each corresponding to a virtual subpopulation.
     pop.setVirtualSplitter(simuPOP.CombinedSplitter([
@@ -169,7 +173,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
             simuPOP.CloneMating(ops=[simuPOP.CloneGenoTransmitter(chroms=[0,1])],
                                 subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)],
                                 weight=-1),
-            # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals)
+            # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals) within subpopulation (breeding/winter grounds)
             simuPOP.RandomMating(ops=[simuPOP.MitochondrialGenoTransmitter(),
                                       simuPOP.MendelianGenoTransmitter(),
                                       simuPOP.IdTagger(),
