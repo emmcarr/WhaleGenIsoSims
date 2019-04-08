@@ -11,7 +11,7 @@
 ## m = {0.1, 1, 10}
 ## p = vector of haplotype frequencies
 
->library(igraph)
+library(igraph)
 library(hierfstat)
 library(adegenet)
 library(srataG)
@@ -84,44 +84,40 @@ freq2genind2 <- function (mat, samp) {
     resmat2
 }
 
-###################################################################################################################################### 
+
 ## dist.fst is a function that 
 ## (1) calculates the alpha parameter for the Dirichlet distribution using Ne*m*freq 
 ## where Ne and m are user-set and freq comes from the empirical haplotype frequency data of Carroll et al (2018)
 ## (2) tests whether the FST produced falls within 10% of the desired FST value, keep the frequency
 ## distribution, otherwise redo the alpha parameter calculation
 ## (3) write the frequency distributions to a list in a text file if it meets the FST criteria
-  
 
 dist.fst<-function(Ne1, m1, FST, reps, pops, samp) {
   # create empty list to hold results
   res = 0
   while (res < reps)
   {
-    # sample empirical hap freq distribution: this is changed depending on what we are simulating
+    # sample empirical hap freq distribution
     hapsamp<-c(sample(AUS2, 100, replace = TRUE), sample(NZ2, 100), sample(PV2, 100), sample(SAF2, 100))
     
     ## convert this to frequencies
     freq<-as.vector(table(hapsamp))
-    freq=freq/sum(freq)
+    freq<-freq/400
     
-    ## (1) calculate starting haplotype frequencies for given number of pops
+    ## calculate starting haplotype frequencies for given number of pops
     s1<-sample_dirichlet(pops, (Ne1*m1*freq))
     
-    ## (2) what FST does this give with sample size samp
+    ## what FST does this give with sample size samp
     start_mtDNA<-cbind(1:length(freq), s1)
     Fst.loop<-genet.dist(freq2genind2(mat = start_mtDNA, samp = samp), diploid = FALSE, method = "WC84")
     
-    ## only keep if FST is within 10% of desired value of FST
     if ((Fst.loop < (FST*1.1)) & (Fst.loop > (FST * 0.9)))
-    
-    ## (3) if it is an acceptable value, write to file
     {
       res = res+1
-      write.table(s1, paste(res, ".txt", sep = ""),
-                col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
+      write.table(s1, paste("mtDNA", res, ".txt", sep = ""),
+                  col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
       
-     }
+    }
     else 
     {res = res}
   }
@@ -195,7 +191,7 @@ snpfreq.func<-function(genind, sample.size){
 ###################################################################################################################################### 
 # Step 2: create function to calculate beta distribution to sample starting SNP allele frequencies from and then test FST values
 
-## beta.dist.func
+## simple.beta.dist.func
 ## (1) calculates the alpha and beta parameters for the beta distribution using:
 ## alpha <- (4*Ne1)*m1*p
 ## beta <- (4*Ne1)*m1*(1-p)
@@ -203,75 +199,30 @@ snpfreq.func<-function(genind, sample.size){
 ## where Ne and m are user-set
 ## p is generated using empirical SNP data from genind file
 ##
-## (2) generates a sample of size samp.size for each population using the beta distribution from (1)
-## 
-## (3) calculates FST value for the samples
-##
-## (4) if calculated FST value is +/-10% from desired FST value, then the distributions are written to file
-## this is done
+## writes to file reps number of times
 
-## in this function Ne1 and m1 control the shape of the beta distribution along with empirical data from genind
-## the number of populations (pop.number) and sample size (samp.size) are user-set, as is loc.number but be aware
-## that if it is more than in your genind it will resample the loci.
-## set your desired FST and number of simulation replicates (reps) that you want ouptutted
-
-beta.dist.func<-function (Ne1, m1, pop.number, samp.size, loc.number, FST, genind, reps){
+simple.beta.dist.func<-function (Ne1, m1, pop.number, loc.number, genind, reps){
   ## set up beta distribution parameters
   res = 0
   while (res < reps) {
-      ## calculate frequency distribution for SNPs
-      p<-snpfreq.func(genind, sample.size = loc.number)
-      alpha <- (4*Ne1)*m1*p
-      beta <- (4*Ne1)*m1*(1-p)
-  
-      ##generate distribution for each population
-      dist.mat<-matrix(nrow = pop.number, ncol = loc.number)
-      for (pop in 1:pop.number)
-              {
-                dist.mat[pop,]<-as.vector((rbeta(loc.number, shape1 = alpha, shape2 = beta)))
-                  }
-  
-  ## now we generate samples from the frequencies
-  ## create a matrix for use with hierfstat function genet.dist to calculate fst
-  ## the first column is population number
-  ## subsequent columns are one row per sample and one column per locus
-      resmat<-matrix(nrow = samp.size*pop.number, ncol = loc.number*2+1)
-      resmat[,1]<-as.vector(c(sort(rep(1:pop.number, samp.size))))
-  ## this works for one population. need to loop it for second population that starts on row samp.size+1
-  ## population 2 needs to start after sample size for population 1 filled in
-          for (pop in 1:pop.number) {
-              for (i in 1:samp.size) {
-                 for (j in 1:loc.number) {
-      ## generating 2 alleles per sample per locus
-                          resmat[(i+((pop-1)*samp.size)),(j*2)] <-sample(c(10,20), 1, 
-                                                                        prob = c(dist.mat[pop,j], 1-dist.mat[pop,j]), 
-                                                                        replace = TRUE)
-                         resmat[(i+((pop-1)*samp.size)),((j*2)+1)] <-sample(c(10,20), 1, 
-                                                                            prob = c(dist.mat[pop,j], 1-dist.mat[pop,j]), 
-                                                                            replace = TRUE)
-                                          }
+    ## calculate frequency distribution for SNPs
+    p<-snpfreq.func(genind, sample.size = loc.number)
+    alpha <- (4*Ne1)*m1*p
+    beta <- (4*Ne1)*m1*(1-p)
     
-                                      }
-                                  }
-      ## calculate FST given sampled data generated
-      Fst.loop<-genet.dist(resmat, diploid = FALSE, method = "WC84")
-        ## if given FST is within the acceptable limits write it to file
-        if ((Fst.loop < (FST*1.1)) & (Fst.loop > (FST * 0.9)))
-            {
-              res = res+1
-               write.table(t(dist.mat), paste("SNP_", res, ".txt", sep = ""),
-              col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
-  
-            }
-              ## otherwise start again
-              else 
-              {res = res}
-            }
-          }
-
-
-
-
+    ##generate distribution for each population
+    dist.mat<-matrix(nrow = pop.number, ncol = loc.number)
+    for (pop in 1:pop.number)
+    {
+      dist.mat[pop,]<-as.vector((rbeta(loc.number, shape1 = alpha, shape2 = beta)))
+    }
+    
+    write.table(t(dist.mat), paste("SNP_", res, ".txt", sep = ""),
+                  col.names = FALSE, row.names = FALSE, sep = "\t", quote = FALSE)
+          
+    res = res+1
+  }
+}  
 
 
 ###################################################################################################################################### 
@@ -321,12 +272,17 @@ Ne100m1_WC<-sim.fst(Ne1 = 100, m1 = 1, samp = 100, replicates = 10000, method = 
 ## FST ~ 0.1
 Ne100m.1_WC<-sim.fst(Ne1 = 100, m1 = 0.1, samp = 100, replicates = 10000, method = "WC84")
 
-resmat<-matrix(nrow = 3, ncol = 3)
-colnames(resmat)<-c("Nm", "EstFst", "ObsFst")
-rownames(resmat)<-c("Ne100m10_WC","Ne100m1_WC", "Ne100m.1_WC")
-resmat[1,]<-c(100*10, (1/((2*100*10)+1)), median(Ne100m10_WC[,3]))
-resmat[2,]<-c(100, (1/((2*100)+1)), median(Ne100m1_WC[,3]))
-resmat[3,]<-c(10, (1/((2*10)+1)), median(Ne100m.1_WC[,3]))
-resmat
+###################################################################################################################################### 
+## then we run the code to generate starting conditions for the simulations:
+
+setwd("/Users/ecar026/Dropbox/Geniso_work/BayesianModel/simupop")
+
+## scenario 1: 
+simple.beta.dist.func(Ne1 = 400, m1=.01, pop.number = 2, samp.size = 100, loc.number = 1000, 
+                      FST = 0.1, genind = indopac.genepop, reps = 100)
+                      
+                   
+dist.fst(Ne1, m1, FST, reps, pops, samp)
+
 
 
