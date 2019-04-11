@@ -4,6 +4,47 @@
 ## following Vatsiou et al 2016
 ## Distributions: dirichlet for mtDNA, beta for SNPs
 
+## code to loop through Ne and m values to give starting values for simulations
+
+setwd("/Users/ecar026/Dropbox/Geniso_work/BayesianModel/simupop")
+
+## this uses two functions; simple.beta.dist.func and dist.mtDNA
+## these have the following arguments in common:
+## Ne1 - value of effective population size used to parameterise beta dist (SNPs) and dirichlet (mtDNA)
+## m1 - value of effective number of migrants used to parameterise beta dist (SNPs) and dirichlet (mtDNA)
+## reps - number of times to run simulation process, will give unique set of starting values
+## pop.number - number of populations to run
+## additionally simple.beta.dist requires loc.number, which is the number of SNP loci to simulate
+
+## this requires:
+## haplotype frequencies already entered and named after populations of interest
+## genind: SNP allele frequencies from empirical data
+
+start.gen.sim<-function(Ne1, m1, reps, pop.number, SNP.loc.number, genind) {
+    ## create loops so that multiple values of Ne1 and m1 can be run
+      for (i in 1:length(Ne1)) {
+            for (j in 1:length(m1)) {
+          
+          ## create directory to hold results and move there
+              dir.create(paste("Ne", Ne1[i], "m", m1[j], sep = "_"))
+              setwd(paste("Ne", Ne1[i], "m", m1[j], sep = "_"))
+              
+              ## providing indication of where the function is at
+              print(paste("generating sims for Ne", Ne1[i], "m", m1[j], sep = "_"))  
+                
+                ## generate SNPs from beta distribution using input data, this will write files to the directory
+                simple.beta.dist.func(Ne1 = Ne1[i], m1 = m1[j], pop.number = pop.number, loc.number = SNP.loc.number, genind = genind, reps = reps) 
+             
+                   
+                ## generate mtDNA haplotype frequencies using input data, this will write files to the directory
+                dist.mtDNA(Ne1 =  Ne1[i], m1 = m1[j], reps = reps, pop.number = pop.number)
+                setwd('..')
+                                    }
+                                  }
+                
+                    }
+
+
 ## For the mtDNA data:
 ## use sample_dirichlet fuction
 ## uses n, sample size and alpha, the Dirichlet distribution parameter
