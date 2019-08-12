@@ -45,7 +45,8 @@ def postop_processing(pop):
             # The feeding ground is fixed at birth (inherited from mother)
             # The C and N values are sampled from a distribution based on the feeding ground each year
             # The 'feeding_ground' info field is a float. We cannot use that as an array index so convert to an int
-            if (years == 1):
+            if (pop.dvars().gen == 0):
+                # If this is the first generation, then we assign a feeding ground and C, N values to the individual. Otherwise we use direct maternal inheritance
                 feeding_ground = int(individual.info('feeding_ground'))
                 individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
                 individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
