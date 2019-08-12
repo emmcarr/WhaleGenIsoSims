@@ -45,13 +45,6 @@ def postop_processing(pop):
             # The feeding ground is fixed at birth (inherited from mother)
             # The C and N values are sampled from a distribution based on the feeding ground each year
             # The 'feeding_ground' info field is a float. We cannot use that as an array index so convert to an int
-            if (pop.dvars().gen == 0):
-                # If this is the first generation, then we assign a feeding ground and C, N values to the individual. Otherwise we use direct maternal inheritance
-                feeding_ground = int(individual.info('feeding_ground'))
-                individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
-                individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
-            else:
-                simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['nitrogen', 'carbon', 'native_breeding_ground', 'feeding_ground'])
             # print("Individual ", individual.info('ind_id'), " has native breeding ground ", individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
             # Migration
             # Initially, set the migrate_to to the current population of the individual
@@ -76,6 +69,9 @@ def init_native_breeding_grounds(pop):
     for i in range(0, pop.numSubPop()):
         for individual in pop.individuals(i):
             individual.setInfo(i, 'native_breeding_ground');
+            feeding_ground = int(individual.info('feeding_ground'))
+            individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
+            individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
     return True
 
 def configure_new_population_size(gen, pop):
@@ -182,6 +178,8 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                                       simuPOP.IdTagger(),
                                       simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['feeding_ground']),
                                       simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['native_breeding_ground']),
+                                      simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['carbon']),
+                                      simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['nitrogen']),
                                       simuPOP.PedigreeTagger()],
                                  subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
                                  weight=1)],
