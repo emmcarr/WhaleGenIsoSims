@@ -262,7 +262,7 @@ def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, 
                       genotype[nb_loci],
                       individual.info('carbon'),
                       individual.info('nitrogen'),
-#                      int(individual.info('native_breeding_ground')),
+                      int(individual.info('native_breeding_ground')),
                       file=haplofile, sep=' ')
                 print(int(individual.info('native_breeding_ground')+1), end=' ', file=mixfile)
                 for i in range(0, nb_loci):
