@@ -23,10 +23,10 @@ scenario_id = "1"
 ## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
 ## deviant proportion: proportion of males that will go to non-natal wintering ground for one winter/breeding opportunity
 mean_C = [16.7, 20.5] 
-variance_C = [3.24, 2.89]
+variance_C = [1.8, 1.7]
 mean_N = [5.5, 8.7]
-variance_N = [0.25, 0.49]
-deviant_proportion = 0.1
+variance_N = [0.5, 0.7]
+deviant_proportion = 0.01
 
 ## Sample count is number of samples taken per wintering ground
 numberOfFeedingGrounds = 2
