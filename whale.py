@@ -49,7 +49,7 @@ def postop_processing(pop):
                 feeding_ground = int(individual.info('feeding_ground'))
                 individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
                 individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
-            else
+            else:
                 simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['nitrogen', 'carbon', 'native_breeding_ground', 'feeding_ground'])
             # print("Individual ", individual.info('ind_id'), " has native breeding ground ", individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
             # Migration
