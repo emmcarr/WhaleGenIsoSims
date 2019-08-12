@@ -45,10 +45,12 @@ def postop_processing(pop):
             # The feeding ground is fixed at birth (inherited from mother)
             # The C and N values are sampled from a distribution based on the feeding ground each year
             # The 'feeding_ground' info field is a float. We cannot use that as an array index so convert to an int
-            feeding_ground = int(individual.info('feeding_ground'))
-            individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
-            individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
-
+            if (years == 1):
+                feeding_ground = int(individual.info('feeding_ground'))
+                individual.setInfo(numpy.random.normal(mean_C[feeding_ground], numpy.sqrt(variance_C[feeding_ground])), 'carbon')
+                individual.setInfo(numpy.random.normal(mean_N[feeding_ground], numpy.sqrt(variance_N[feeding_ground])), 'nitrogen')
+            else
+                simuPOP.InheritTagger(mode=simuPOP.MATERNAL, infoFields=['nitrogen', 'carbon', 'native_breeding_ground', 'feeding_ground'])
             # print("Individual ", individual.info('ind_id'), " has native breeding ground ", individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
             # Migration
             # Initially, set the migrate_to to the current population of the individual
