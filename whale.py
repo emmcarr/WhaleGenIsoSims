@@ -12,19 +12,34 @@
 # =============================================================================
 # Loading all packages
 # =============================================================================
+import os
+import csv
+import logging
+import random
+from operator import add
+from pathlib import Path
+
+import numpy as np
+import matplotlib
+
 import simuPOP as sim
 from simuPOP.sampling import drawRandomSample
 from simuPOP.utils import export
-import random
-import numpy as np
-from operator import add
-import simuOpt
-simuOpt.setOptions(quiet=True)
 from simuPOP.utils import Trajectory, simulateForwardTrajectory, export, Exporter
 from simuPOP.utils import viewVars
-import matplotlib
-import csv
-import logging
+
+import simuOpt
+simuOpt.setOptions(quiet=True)
+
+# get the random seed from simuPOP
+# create filenames that don't collide (i.e. overwrite each other)
+SEED = "0x%08x" % sim.getRNG().seed()
+
+# WHERE to store results
+RESULTS_DIR = Path("./results")
+if not RESULTS_DIR.exists():
+    RESULTS_DIR.mkdir()
+
 
 
 # =============================================================================
@@ -82,6 +97,20 @@ pop_firstRecovery	= 75 #year 1955, whales start recovering
 pop_secondRecovery	= 500 #year 1980, there is hope
 pop_currentGen	= 1069 #year 2005, current population doubles from last generation
 pop_hopefulFuture	= 2000 #year 2030, can we be this hopeful?
+
+
+def get_filename(filename, seed=SEED, results_dir=RESULTS_DIR):
+    """
+    Return a unique filename in the output directory with the random seed preprepended:
+    
+    >>> get_filename("test.csv")
+    results/a26d85ecf7d490bc9e44eeb8c80f00d8_test.csv
+
+    >>> get_filename("result.dat")
+    results/a26d85ecf7d490bc9e44eeb8c80f00d8_result.dat
+    """
+    return Path(results_dir) / ("%s_%s" % (seed, filename))
+
 
 def demo(gen, pop):  # demographics function to control population growth (actually birth rate now).
                      # number of bottlenecks and the severities are as agreed on 01.09.2009. 
@@ -234,7 +263,7 @@ def removeOverspill(pop):
 def report(dad, mom, off):
    # print('{} ({}) from {} {}'.format(off.ind_id, off.sex(), dad.ind_id, mom.ind_id))
    #instead of printing it into the terminal, create a file for debugging:
-   with open('parents_check.txt', 'a') as file:
+   with open(get_filename('parents_check.txt'), 'a') as file:
        file.write('{} ({}) from {} {}\n'.format(off.ind_id, off.sex(), dad.ind_id, mom.ind_id))
      
    return True
@@ -461,14 +490,21 @@ pop.evolve(
                    [sim.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
                    [sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
     # increase age by 1
-    preOps = [sim.InfoExec('age += 1'),
-              sim.Stat(popSize=True), #print pop size in each generation
-              sim.PyEval(r'"%s\n" % subPopSize'),
-              sim.PyOperator(func=removeOverspill), # randomly reduce population size so that parent generation fits
- #Export population in each generation
-   Exporter(format='csv', infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
-           output="!'dump_gen_%d.csv' % gen", step=1, begin=75)
-           ],
+    preOps = [
+        sim.InfoExec('age += 1'),
+        sim.Stat(popSize=True), #print pop size in each generation
+        sim.PyEval(r'"%s\n" % subPopSize'),
+        sim.PyOperator(func=removeOverspill), # randomly reduce population size so that parent generation fits
+        # Export population in each generation
+        Exporter(
+            format='csv',
+            infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
+            #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
+            output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
+            #output="!'dump_gen_%d.csv' % gen",
+            step=1, begin=75
+        )
+    ],
     matingScheme = sim.HeteroMating([
         # age <= maxAge, copy to the next generation (weight=-1)
         # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
@@ -566,7 +602,7 @@ sample = drawRandomSample(pop, sizes=sample_count)
 # Print out the allele frequency data
 sim.stat(sample, alleleFreq=sim.ALL_AVAIL)
 frequencies = sample.dvars().alleleFreq;
-with open('freq.txt', 'w') as freqfile:
+with open(get_filename('freq.txt'), 'w') as freqfile:
     index = 0
     for locus in frequencies:
         if (locus == nb_loci):
@@ -593,7 +629,7 @@ sim.stat(pop, alleleFreq=sim.ALL_AVAIL)
 
 last_locus = nb_loci  # Index of the last locus
 
-with open('freq_mtDNA.txt', 'w') as freqfile:
+with open(get_filename('freq_mtDNA.txt'), 'w') as freqfile:
     index = 0
     for locus in frequencies:
         if locus != last_locus:
@@ -629,8 +665,8 @@ monoallelic_loci = sorted(monoallelic_loci, reverse=True)
 
 nb_ignored_loci = len(monoallelic_loci)
 # Generate the two files
-with open('mixfile.txt', 'w') as mixfile:
-    with open('haploiso.txt', 'w') as haplofile:
+with open(get_filename('mixfile.txt'), 'w') as mixfile:
+    with open(get_filename('haploiso.txt'), 'w') as haplofile:
         print(sub_population_count, nb_loci - nb_ignored_loci, 2, 1, file=mixfile)
         print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
         for i in range(0, nb_loci - nb_ignored_loci):
