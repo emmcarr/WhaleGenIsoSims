@@ -14,8 +14,9 @@
 # =============================================================================
 import os
 import csv
-import logging
+import string
 import random
+import logging
 from operator import add
 from pathlib import Path
 
@@ -87,16 +88,16 @@ currentGen	= 82 #year 2005, current population doubles from last generation
 hopefulFuture	= 83 #year 2030, can we be this hopeful?
 
 
-#Population sizes divided by 2
-pop_staticPhaseEnd = 15000 #year 1830, before whaling
-pop_firstDecline	= 1500 #year 1855, whaling starts
-pop_secondDecline	= 100 #year 1880, whaling continues
-pop_thirdDecline	= 75 #year 1905, whaling continues
-pop_bottleNeck = 20 #year 1930, tohorā almost extinct
-pop_firstRecovery	= 75 #year 1955, whales start recovering
-pop_secondRecovery	= 500 #year 1980, there is hope
-pop_currentGen	= 1069 #year 2005, current population doubles from last generation
-pop_hopefulFuture	= 2000 #year 2030, can we be this hopeful?
+#Population sizes
+pop_staticPhaseEnd = 30000 #year 1830, before whaling
+pop_firstDecline	= 3000 #year 1855, whaling starts
+pop_secondDecline	= 200 #year 1880, whaling continues
+pop_thirdDecline	= 150 #year 1905, whaling continues
+pop_bottleNeck = 40  #year 1930, tohorā almost extinct
+pop_firstRecovery	= 150 #year 1955, whales start recovering
+pop_secondRecovery	= 1000 #year 1980, there is hope
+pop_currentGen	= 2138 #year 2005, current population doubles from last generation
+pop_hopefulFuture	= 4000 #year 2030, can we be this hopeful?
 
 
 def get_filename(filename, seed=SEED, results_dir=RESULTS_DIR):
@@ -167,9 +168,7 @@ def demo(gen, pop):  # demographics function to control population growth (actua
 def overspillLethalEvent(pop, numRemovables):
 
     if numRemovables <= 0:
-
         return True
-
     else:
         numRemovables = numRemovables + 1
         print('Removables: %d' % numRemovables)
@@ -177,7 +176,6 @@ def overspillLethalEvent(pop, numRemovables):
         print('Indices: %d' % len(indices))
         affected = random.sample(indices, int(numRemovables))
         pop.removeIndividuals(affected)
-        
     return True
 
 
@@ -187,70 +185,60 @@ def removeOverspill(pop):
     gen = pop.dvars().gen
     
     if gen <= staticPhaseEnd:
-        gen += 1 # increment gen
         nextSubPopSizes = [pop_staticPhaseEnd, pop_staticPhaseEnd]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed 
         overspillLethalEvent(pop, numRemovables)
 
     elif gen == firstDecline:
-        gen += 1 # increment gen
         nextSubPopSizes = [pop_firstDecline, pop_firstDecline]  
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed 
         overspillLethalEvent(pop, numRemovables)
     
     elif gen == secondDecline:
-        gen += 1
         nextSubPopSizes = [pop_secondDecline, pop_secondDecline]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == thirdDecline:
-        gen += 1
         nextSubPopSizes = [pop_thirdDecline, pop_thirdDecline]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == bottleNeck:
-        gen += 1
         nextSubPopSizes = [pop_bottleNeck, pop_bottleNeck]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
-                
     elif gen == firstRecovery:
-        gen += 1
         nextSubPopSizes = [pop_firstRecovery, pop_firstRecovery]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == secondRecovery:
-        gen += 1
         nextSubPopSizes = [pop_secondRecovery, pop_secondRecovery]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == currentGen:
-        gen += 1
         nextSubPopSizes =  [pop_currentGen, pop_currentGen]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     else: #final rise
-        gen += 1
         nextSubPopSizes = [pop_hopefulFuture, pop_hopefulFuture]
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
-         
+    gen += 1
     return True
 
 # =============================================================================
@@ -265,7 +253,6 @@ def report(dad, mom, off):
    #instead of printing it into the terminal, create a file for debugging:
    with open(get_filename('parents_check.txt'), 'a') as file:
        file.write('{} ({}) from {} {}\n'.format(off.ind_id, off.sex(), dad.ind_id, mom.ind_id))
-     
    return True
 
 
@@ -313,7 +300,6 @@ sample_count = 60
 population_growth_rate = 1.07 
 population_growing_period = 10 # in years
 
-#sub_population_size = [15000, 15000] ## MK, same as size, changed for trajectory
 
 def postop_processing(pop):
     for i in range(0, pop.numSubPop()):
@@ -357,330 +343,370 @@ def init_native_breeding_grounds(pop):
 def configure_new_population_size(gen, pop):
     # It is critical to specify the sub population sizes independently of each other. Each sub-population may be a different size
     if (gen < population_growing_period):
-        return [pop.subPopSize(0) * population_growth_rate, pop.subPopSize(1) * population_growth_rate]
+        return [pop.subPopSize(0) * population_growth_rate]
     else:
-        return [pop.subPopSize(0), pop.subPopSize(1)]
+        return [pop.subPopSize(0)]
 
-def runSimulation(scenario_id, sub_population_size, minMatingAge, maxMatingAge, gen):
+
+
+def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochondrial_file, snp_file):
     '''
-    sub_population_size   A vector giving the population sizes for each sub-population. The subpopulations determine which breeding ground an individual belongs to
+    sub_population_size   A list giving the population sizes for each sub-population. The subpopulations
+                          determine which breeding ground an individual belongs to
     minMatingAge          minimal mating age.
     maxMatingAge          maximal mating age. Individuals older than this are effectively dead
-    years                 number of years to simulate
+    mitochondrial_file    Path to the file containing the mitochondrial data.
+                          Should be a tab delimited text file with one column per subpopulation.
+    snp_file              Path to the file containing the SNP data.
+                          Should be a tab delimited text file with one column per subpopulation.
     '''
 
-# scenario_id describes the batch of files to load
-# The mitochondrial DNA will be in mtdna_<scenario_id>
-# The SNP DNA will be in snp_<scenario_id>
-
-# Read the mitochondrial haplotype frequencies. There's a bit to unpack here
-# We read the lines into an array, and for each one, call split() on it to get one element per column.
-# However, we do not want this - we want the transpose, where haplotype_frequencies[0] is a vector of
-# all the frequencies for population 0, and haplotype_frequencies[1] is the corresponding vector for
-# population 2. list(map(list, zip(*t))) will achieve this transformation for us.
-# While we are at it, we also convert the strings into floats.
-mitochondrial_file = "mtdna_" + scenario_id + ".txt"
-with open(mitochondrial_file, "r") as fd:
-    haplotype_frequencies = list(map(list, zip(*[list(map(float, line[0:-1].split())) for line in fd])))
-
-#if len(haplotype_frequencies) != len(sub_population_size):
- #   raise ValueError('The number of populations in the population size vector and the number of populations deduced from the haplotype file are different')
-
-#if len(haplotype_frequencies) != len[pop_staticPhaseEnd,pop_staticPhaseEnd]:
- #   raise ValueError('The number of populations in the population size vector and the number of populations deduced from the haplotype file are different')
-
-
-# Now read the SNP data. This builds a 2D array indexed as snp[locus][population]
-snp_file = "snp_" + scenario_id + ".txt"
-with open(snp_file, "r") as fd:
-    snp = [list(map(float, line[0:-1].split())) for line in fd]
-
-sub_population_count = 2
-print(sub_population_count, "subpopulations detected")
-
-# Now we can create the population. We want to give each population a population name, 
-#starting from A
-sub_population_names = list(map(chr, range(65, 65+sub_population_count)))
-
-
-
-# =============================================================================
-# Population
-# =============================================================================
-
-pop = sim.Population(size = [pop_staticPhaseEnd, pop_staticPhaseEnd], 
-                             ploidy=2,
-                             loci=[nb_loci, 1],
-                             ancGen=2,#Number of the most recent ancestral generations 
-                             #to keep during evolution, i.e., ancGen=2 keep parental and
-                             #grandparental generations coexisting with the newest one.
-                             infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'],
-                             subPopNames = sub_population_names,
-                             chromTypes=[sim.AUTOSOME, sim.MITOCHONDRIAL])
-
-sub_population_names = tuple(sub_population_names)
-
-
-
-# Create an attribute on each individual called 'age'. Set it to a random number between 0 and maxMatingAge
-# Note that size is a vector - the size of each population. We have to sum these to get the total number of individuals
-#individual_count = sum(sub_population_size)
-individual_count = pop_staticPhaseEnd*2
-
-# Assign a random age to each individual
-pop.setIndInfo([random.randint(0, maxMatingAge) for x in range(individual_count)], 'age')
-# Assign a random feeding ground to each individual
-pop.setIndInfo([random.randint(0, numberOfFeedingGrounds-1) for x in range(individual_count)], 'feeding_ground')
-
-
-# Currently we have these virtual subpopulations:
-# age < minMatingAge (juvenile)
-# age >= minMatingAge and age < maxMatingAge + 0.1 (age <= maxMatingAge) (mature)
-# age >= maxMatingAge (dead)
-#
-# Ideally we would want something like this:
-# 1) Immature
-# 2) Receptive female (every 3 years)
-# 3) Non-receptive female
-# 4) Mature male
-# 5) Dead
-# 
-# Note that we use a cutoff InfoSplitter here, it is also possible to
-# provide a list of values, each corresponding to a virtual subpopulation.
-pop.setVirtualSplitter(sim.CombinedSplitter([
-    sim.ProductSplitter([sim.SexSplitter(),
-                             sim.InfoSplitter('age', cutoff=[minMatingAge, maxMatingAge + 0.1], names=['juvenile', 'mature', 'dead'])])],
-                             vspMap = [[0], [1], [2], [3], [4], [5], [0, 1, 3, 4], [1,4]],
-                              names = ['Juvenile Male', 'Mature Male', 'Dead Male', 'Juvenile Female', 'Mature Female', 'Dead Female', 'Not dead yet', 'Active']))
-
-sim.dump(pop)
-
-# =============================================================================
-# MK: Check if VSPs are initiallized properly
-# =============================================================================
-pop.numVirtualSubPop()
-pop.subPopName([0,0])
-pop.subPopName([0,1])
-pop.subPopName([1,7])
-pop.subPopName([1,4])
-
-
-##############################################################################
-# =============================================================================
-# Printing 10 alleles:
-# =============================================================================
-#initOps: applied before evolution
-#preOps: applied to parental population at the beginning of each life cycle
-#postOps: applied to offspring generation at the end of each life cycle
-#finalOps: aplied at the end of evolution
-
-#To fix the weight=-1 problem, I'll use BoPeng's solution
-pop.dvars().demo = demo
-sim.stat(pop, popSize=True)
-#BO: is important here because the expression 
-#popSize > demo(gen) needs demo in the population's namespace.
-
-
-##January 14th, 2024
-#I successfully installed the patch now, and then I can try to make it work as
-#it was when I first asked for Bo's help:
-   
-pop.evolve(
-    initOps = [sim.InitSex(), sim.IdTagger(), sim.PyOperator(func=init_native_breeding_grounds)] +
-                   [sim.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
-                   [sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
-    # increase age by 1
-    preOps = [
-        sim.InfoExec('age += 1'),
-        sim.Stat(popSize=True), #print pop size in each generation
-        sim.PyEval(r'"%s\n" % subPopSize'),
-        sim.PyOperator(func=removeOverspill), # randomly reduce population size so that parent generation fits
-        # Export population in each generation
-        Exporter(
-            format='csv',
-            infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
-            #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
-            output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
-            #output="!'dump_gen_%d.csv' % gen",
-            step=1, begin=75
+    # Read the mitochondrial haplotype frequencies. There's a bit to unpack here
+    # We read the lines into an array, and for each one, call split() on it to get one element per column.
+    # However, we do not want this - we want the transpose, where haplotype_frequencies[0] is a vector of
+    # all the frequencies for population 0, and haplotype_frequencies[1] is the corresponding vector for
+    # population 2. list(map(list, zip(*t))) will achieve this transformation for us.
+    # While we are at it, we also convert the strings into floats.
+    with open(mitochondrial_file, "r") as fd:
+        haplotype_frequencies = list(map(list, zip(*[list(map(float, line[0:-1].split())) for line in fd])))
+    
+    if len(haplotype_frequencies) != len(sub_population_size):
+        raise ValueError(
+            'The number of populations in the population size vector and the number of populations'
+            ' deduced from the haplotype file are different'
         )
-    ],
-    matingScheme = sim.HeteroMating([
-        # age <= maxAge, copy to the next generation (weight=-1)
-        # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
-        # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
-        sim.CloneMating(ops=[sim.CloneGenoTransmitter(chroms=[0,1])],
-                            subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], #MK:6 here is because
-                            #two of the eight virtual subpopulations are deceased.
-                            weight=-1
-                            ), #MK: if weights are negative, they are multiplied to their parental subpopulation;
-            #For example: if parental pop = (500, 1000), and weight = -2, next 
-            #generation pop= (1000, 2000). 
-            #For weight -1, it keeps the number of individuals from the parental generation.
-            #ALSO: if there is a mix of negative and positive weights, the negative will be processed first.
-        # Then we simulate random mating only in VSP 1 (ie reproductively mature individuals) within subpopulation (breeding/winter grounds)
-        sim.RandomMating(ops=[sim.MitochondrialGenoTransmitter(),
-                                  sim.MendelianGenoTransmitter(),
-                                  sim.IdTagger(),
-                                  sim.InheritTagger(mode=sim.MATERNAL, infoFields=['feeding_ground']),
-                                  sim.InheritTagger(mode=sim.MATERNAL, infoFields=['native_breeding_ground']),
-                                  sim.PedigreeTagger(),
-                                  #sim.PyOperator((report))
-                                  ],
-                             subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
-                             weight=0 #recommended by Bo:
-                                 #The second mating scheme should have weight 0, 
-                                 #and generate the rest of the offspring. If you get 
-                                 #an error, it probably means the parental virtual 
-                                 #subpopulation is empty.
-                             )],
-        subPopSize=demo),
-           ##REMOVING TRAJECTORY TO SEE IF IT WORKS NOW:        
-        # sim.ControlledRandomMating(subPopSize=model10,
-        #                           freqFunc=traj.func(),
-         #                          weight=1)] #MK: we decided to keep the same weight as the
-        #mitochondrial transmitter.
-       
-    postOps = [
 
-    # Determine the isotopic ratios in individuals
-    sim.PyOperator(func=postop_processing),
-    sim.Migrator(mode=sim.BY_IND_INFO),
-        # count the individuals in each virtual subpopulation
-        #sim.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (1,0), (1, 1), (1, 2)]),
-        # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
-        #sim.PyEval(r"'Size of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))")
+    # Now read the SNP data. This builds a 2D array indexed as snp[locus][population]
+    with open(snp_file, "r") as fd:
+        snp = [list(map(float, line[0:-1].split())) for line in fd]
 
-        # Alternatively, calculate the Fst
-        # FIXME: How does this actually work? Does it work for > 2 populations? I don't really understand it yet
-        # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
-        # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
+    # how many sub_populations do we have?
+    sub_population_count = len(sub_population_size)
 
-        sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
-        sim.Stat(numOfMales=True, 
-                 begin = 73, step = 1),     
-        sim.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10), #Print Fst every 10 steps
-        sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10), #added this now, to
-        #calculate the allele frequencies in selected loci
-       sim.PyEval(r"'%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n' % ("
-           "subPop[0]['alleleFreq'][1][1], subPop[0]['alleleFreq'][2][1], subPop[0]['alleleFreq'][3][1],"
-           "subPop[0]['alleleFreq'][4][1], subPop[0]['alleleFreq'][5][1], subPop[0]['alleleFreq'][6][1],"
-           "subPop[0]['alleleFreq'][7][1], subPop[0]['alleleFreq'][8][1], subPop[0]['alleleFreq'][9][1],"
-           "subPop[0]['alleleFreq'][100][1], subPop[1]['alleleFreq'][1][1], subPop[1]['alleleFreq'][2][1],"
-           "subPop[1]['alleleFreq'][3][1], subPop[1]['alleleFreq'][4][1], subPop[1]['alleleFreq'][5][1],"
-           "subPop[1]['alleleFreq'][6][1], subPop[1]['alleleFreq'][7][1], subPop[1]['alleleFreq'][8][1],"
-           "subPop[1]['alleleFreq'][9][1], subPop[1]['alleleFreq'][100][1])", step=1, begin = 73),
-       
-        #sim.PyOperator(func=lethalEvent)
-    ],
-    finalOps= sim.Stat(alleleFreq=0, vars=['alleleFreq_sp']),
-    gen = 83
+    # Now we can create the population. 
+    # We want to give each population a population name, starting from A
+    sub_population_names = tuple(
+        string.ascii_uppercase[i] for (i, s) in enumerate(sub_population_size)
+    )
+        
+    # =============================================================================
+    # Population
+    # =============================================================================
+
+    pop = sim.Population(
+        size=pop_staticPhaseEnd,
+        ploidy=2,
+        loci=[nb_loci, 1],
+        ancGen=2,#Number of the most recent ancestral generations 
+        #to keep during evolution, i.e., ancGen=2 keep parental and
+        #grandparental generations coexisting with the newest one.
+        infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'],
+        subPopNames=sub_population_names,
+        chromTypes=[sim.AUTOSOME, sim.MITOCHONDRIAL])
+
+    # Create an attribute on each individual called 'age'. Set it to a random number 
+    # between 0 and maxMatingAge
+    # Note that size is a vector - the size of each population. We have to sum these
+    #  to get the total number of individuals
+    #i ndividual_count = sum(sub_population_size)
+    individual_count = pop_staticPhaseEnd * 2
+
+    # Assign a random age to each individual
+    pop.setIndInfo(
+        [random.randint(0, maxMatingAge) for x in range(individual_count)], 'age')
+    # Assign a random feeding ground to each individual
+    pop.setIndInfo(
+        [random.randint(0, numberOfFeedingGrounds-1) for x in range(individual_count)],
+        'feeding_ground')
+
+    # Currently we have these virtual subpopulations:
+    # age < minMatingAge (juvenile)
+    # age >= minMatingAge and age < maxMatingAge + 0.1 (age <= maxMatingAge) (mature)
+    # age >= maxMatingAge (dead)
+    #
+    # Ideally we would want something like this:
+    # 1) Immature
+    # 2) Receptive female (every 3 years)
+    # 3) Non-receptive female
+    # 4) Mature male
+    # 5) Dead
+    # 
+    # Note that we use a cutoff InfoSplitter here, it is also possible to
+    # provide a list of values, each corresponding to a virtual subpopulation.
+    pop.setVirtualSplitter(
+        sim.CombinedSplitter([
+            sim.ProductSplitter([
+                sim.SexSplitter(),
+                sim.InfoSplitter(
+                    "age",
+                    cutoff=[minMatingAge, maxMatingAge + 0.1],
+                    names=["juvenile", "mature", "dead"],
+                ),
+            ])
+        ],
+        vspMap=[[0], [1], [2], [3], [4], [5], [0, 1, 3, 4], [1, 4]],
+        names=[
+            "Juvenile Male",  # 0
+            "Mature Male",    # 1
+            "Dead Male",      # 2
+            "Juvenile Female",# 3
+            "Mature Female",  # 4
+            "Dead Female",    # 5
+            "Not dead yet",   # 0, 1, 3, 4
+            "Active",         # 1, 4 = sexually active
+        ])
     )
 
+    ## sim.dump(pop)
+    # =============================================================================
+    # MK: Check if VSPs are initiallized properly
+    # =============================================================================
+    # pop.subPopName([0,0])
+    # pop.subPopName([0,1])
+    # pop.subPopName([1,7])
+    # pop.subPopName([1,4])
 
-pop.vars()
+    ##############################################################################
+    # =============================================================================
+    # Printing 10 alleles:
+    # =============================================================================
+    #initOps: applied before evolution
+    #preOps: applied to parental population at the beginning of each life cycle
+    #postOps: applied to offspring generation at the end of each life cycle
+    #finalOps: aplied at the end of evolution
 
-# print out population size and allele frequency
-for idx, name in enumerate(pop.subPopNames()):
-    print('%s (%d): %.4f' % (name, pop.subPopSize(name), 
-        pop.dvars(idx).alleleFreq[0][0]))
+    #To fix the weight=-1 problem, I'll use BoPeng's solution
+    pop.dvars().demo = demo
+    sim.stat(pop, popSize=True)
+    #BO: is important here because the expression 
+    #popSize > demo(gen) needs demo in the population's namespace.
+
+
+    ##January 14th, 2024
+    #I successfully installed the patch now, and then I can try to make it work as
+    #it was when I first asked for Bo's help:
+
+    print("---")
+    print("SIMON::")
+    
+    print(sub_population_count)
+    print(sub_population_names)
+    print("---")
+
+
+    pop.evolve(
+        initOps = [
+            sim.InitSex(),
+            sim.IdTagger(),
+            sim.PyOperator(func=init_native_breeding_grounds)
+        ] +
+        [ sim.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
+        [ sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
+        # increase age by 1
+        preOps = [
+            sim.InfoExec('age += 1'),
+            sim.Stat(popSize=True), #print pop size in each generation
+            sim.PyEval(r'"%s\n" % subPopSize'),
+            # randomly reduce population size so that parent generation fits
+            sim.PyOperator(func=removeOverspill),
+            # Export population in each generation
+            Exporter(
+                format='csv',
+                infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
+                #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
+                output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
+                #output="!'dump_gen_%d.csv' % gen",
+                step=1, begin=75
+            )
+        ],
+        matingScheme = sim.HeteroMating([
+            # age <= maxAge, copy to the next generation (weight=-1)
+            # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
+            # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
+            sim.CloneMating(
+                ops=[sim.CloneGenoTransmitter(chroms=[0,1])],
+                #MK:6 here is because two of the eight virtual subpopulations are deceased.
+                subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], 
+                weight=-1
+            ), 
+                #MK: if weights are negative, they are multiplied to their parental subpopulation; 
+                # For example: 
+                #  if parental pop = (500, 1000), and weight = -2, 
+                #  next generation pop= (1000, 2000). 
+                # For weight -1, it keeps the number of individuals from the parental generation.
+                #
+                # ALSO: if there is a mix of negative and positive weights, the negative will be
+                # processed first.
+            # Then we simulate random mating only in VSP 1 (i.e. reproductively mature individuals)
+            # within subpopulation (breeding/winter grounds)
+            sim.RandomMating(
+                ops=[sim.MitochondrialGenoTransmitter(),
+                     sim.MendelianGenoTransmitter(),
+                     sim.IdTagger(),
+                     sim.InheritTagger(mode=sim.MATERNAL, infoFields=['feeding_ground']),
+                     sim.InheritTagger(mode=sim.MATERNAL, infoFields=['native_breeding_ground']),
+                     sim.PedigreeTagger(),
+                     #sim.PyOperator((report))
+                ],
+                subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
+                weight=0 #recommended by Bo:
+                # The second mating scheme should have weight 0, and generate the rest of the offspring. 
+                # If you get an error, it probably means the parental virtual subpopulation is empty.
+             )],
+            subPopSize=demo),
+            # REMOVING TRAJECTORY TO SEE IF IT WORKS NOW:        
+            # MK: we decided to keep the same weight as the mitochondrial transmitter.
+            # sim.ControlledRandomMating(subPopSize=model10, freqFunc=traj.func(), weight=1)]
+       
+        postOps = [
+
+        # Determine the isotopic ratios in individuals
+        sim.PyOperator(func=postop_processing),
+        sim.Migrator(mode=sim.BY_IND_INFO),
+            # count the individuals in each virtual subpopulation
+            #sim.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (1,0), (1, 1), (1, 2)]),
+            # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
+            #sim.PyEval(r"'Size of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))")
+            # Alternatively, calculate the Fst
+            # FIXME: How does this actually work? Does it work for > 2 populations? I don't really understand it yet
+            # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
+            # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
+
+            sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
+            sim.Stat(numOfMales=True, begin = 73, step = 1),
+            sim.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10), #Print Fst every 10 steps
+            sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10), #added this now, to
+            #calculate the allele frequencies in selected loci
+           sim.PyEval(
+              r"'%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n' % ("
+               "subPop[0]['alleleFreq'][1][1], subPop[0]['alleleFreq'][2][1], subPop[0]['alleleFreq'][3][1],"
+               "subPop[0]['alleleFreq'][4][1], subPop[0]['alleleFreq'][5][1], subPop[0]['alleleFreq'][6][1],"
+               "subPop[0]['alleleFreq'][7][1], subPop[0]['alleleFreq'][8][1], subPop[0]['alleleFreq'][9][1],"
+               "subPop[0]['alleleFreq'][100][1], subPop[1]['alleleFreq'][1][1], subPop[1]['alleleFreq'][2][1],"
+               "subPop[1]['alleleFreq'][3][1], subPop[1]['alleleFreq'][4][1], subPop[1]['alleleFreq'][5][1],"
+               "subPop[1]['alleleFreq'][6][1], subPop[1]['alleleFreq'][7][1], subPop[1]['alleleFreq'][8][1],"
+               "subPop[1]['alleleFreq'][9][1], subPop[1]['alleleFreq'][100][1])", step=1, begin = 73),
+       
+            #sim.PyOperator(func=lethalEvent)
+        ],
+        finalOps= sim.Stat(alleleFreq=0, vars=['alleleFreq_sp']),
+        gen = 83
+    )
+    print("HERE")
+    pop.vars()
+
+    # print out population size and allele frequency
+    for idx, name in enumerate(pop.subPopNames()):
+        print('%s (%d): %.4f' % (name, pop.subPopSize(name), 
+            pop.dvars(idx).alleleFreq[0][0]))
     
     
 
-viewVars(pop.vars(), gui=False)
-sim.dump(pop)
+    viewVars(pop.vars(), gui=False)
+    sim.dump(pop)
 
 
-ped = sim.Pedigree(pop);
-print("This is the pedigree stuff")
+    ped = sim.Pedigree(pop);
+    print("This is the pedigree stuff")
 
 
-# Now sample the individuals
-#sample = drawRandomSample(pop, sizes=[sample_count]*sub_population_count)
-sample = drawRandomSample(pop, sizes=sample_count)
+    # Now sample the individuals
+    #sample = drawRandomSample(pop, sizes=[sample_count]*sub_population_count)
+    sample = drawRandomSample(pop, sizes=sample_count)
 
-# Print out the allele frequency data
-sim.stat(sample, alleleFreq=sim.ALL_AVAIL)
-frequencies = sample.dvars().alleleFreq;
-with open(get_filename('freq.txt'), 'w') as freqfile:
-    index = 0
-    for locus in frequencies:
-        if (locus == nb_loci):
-            continue
-        if (len(frequencies[locus]) < 2):
-            continue
-        print(index, end=' ', file=freqfile)
-        index = index + 1
-        for allele in frequencies[locus]:
-            print(frequencies[locus][allele], end=' ', file=freqfile)
-        print(file=freqfile)
+    # Print out the allele frequency data
+    sim.stat(sample, alleleFreq=sim.ALL_AVAIL)
+    frequencies = sample.dvars().alleleFreq;
+    with open(get_filename('freq.txt'), 'w') as freqfile:
+        index = 0
+        for locus in frequencies:
+            if (locus == nb_loci):
+                continue
+            if (len(frequencies[locus]) < 2):
+                continue
+            print(index, end=' ', file=freqfile)
+            index = index + 1
+            for allele in frequencies[locus]:
+                print(frequencies[locus][allele], end=' ', file=freqfile)
+            print(file=freqfile)
         
-# =============================================================================
-# MK: Print out mtDNA frequency data in a way that is comparable to the original
-# file.        
-# =============================================================================
-# Print out the mtDNA frequency data
-samplemtDNA_count = 1992 #to grab all the possible final haplotypes; this is limited
-#by te highest number of individuals in a subpopulation, which is 1,992 in this case
-#for subpopulation 1. Once the number of inidividuals is corrected based on the bottleneck,
-#this value here has to be changed.
-samplemtDNA = drawRandomSample(pop, sizes = [samplemtDNA_count]*sub_population_count)
-sim.stat(pop, alleleFreq=sim.ALL_AVAIL)
+    # =============================================================================
+    # MK: Print out mtDNA frequency data in a way that is comparable to the original
+    # file.        
+    # =============================================================================
+    # Print out the mtDNA frequency data
+    samplemtDNA_count = 1992 #to grab all the possible final haplotypes; this is limited
+    #by te highest number of individuals in a subpopulation, which is 1,992 in this case
+    #for subpopulation 1. Once the number of inidividuals is corrected based on the bottleneck,
+    #this value here has to be changed.
+    samplemtDNA = drawRandomSample(pop, sizes = [samplemtDNA_count]*sub_population_count)
+    sim.stat(pop, alleleFreq=sim.ALL_AVAIL)
 
-last_locus = nb_loci  # Index of the last locus
+    last_locus = nb_loci  # Index of the last locus
 
-with open(get_filename('freq_mtDNA.txt'), 'w') as freqfile:
-    index = 0
-    for locus in frequencies:
-        if locus != last_locus:
-            continue
+    with open(get_filename('freq_mtDNA.txt'), 'w') as freqfile:
+        index = 0
+        for locus in frequencies:
+            if locus != last_locus:
+                continue
 
-        if len(frequencies[locus]) < 2:
-            continue
+            if len(frequencies[locus]) < 2:
+                continue
 
-        print(index, end=' ', file=freqfile)
-        index += 1
+            print(index, end=' ', file=freqfile)
+            index += 1
 
-        for allele in frequencies[locus]:
-            print(frequencies[locus][allele], end=' ', file=freqfile)
+            for allele in frequencies[locus]:
+                print(frequencies[locus][allele], end=' ', file=freqfile)
 
-        print(file=freqfile)
+            print(file=freqfile)
 
-#The output has values that add up to 1, which is what is expected for a 
-#mtDNA haplotype frequency data.
+    #The output has values that add up to 1, which is what is expected for a 
+    #mtDNA haplotype frequency data.
 
-# We want to remove monoallelic loci. This means a position in the genotype for which all individuals have the same value in both alleles
-# To implement this we will build up a list of loci that get ignored when we dump out the file. Generally speaking, if we add all the values up
-# then either they will sum to 0 (if all individuals have type 0) or to the number of individuals * 2 (if all individuals have type 1)
-geno_sum = [0] * (nb_loci + 1) * 2;
-for individual in sample.individuals():
-    geno_sum = list(map(add, geno_sum, individual.genotype()))
-final_sum = list(map(add, geno_sum[:(nb_loci+1)], geno_sum[(nb_loci+1):]))
+    # We want to remove monoallelic loci. This means a position in the genotype for which all individuals have the same value in both alleles
+    # To implement this we will build up a list of loci that get ignored when we dump out the file. Generally speaking, if we add all the values up
+    # then either they will sum to 0 (if all individuals have type 0) or to the number of individuals * 2 (if all individuals have type 1)
+    geno_sum = [0] * (nb_loci + 1) * 2;
+    for individual in sample.individuals():
+        geno_sum = list(map(add, geno_sum, individual.genotype()))
+    final_sum = list(map(add, geno_sum[:(nb_loci+1)], geno_sum[(nb_loci+1):]))
 
-monoallelic_loci = [];
-for i in range(0, nb_loci):
-    if final_sum[i] == 0 or final_sum[i] == sample_count*sub_population_count*2:
-        monoallelic_loci = [i] + monoallelic_loci
-monoallelic_loci = sorted(monoallelic_loci, reverse=True)
+    monoallelic_loci = [];
+    for i in range(0, nb_loci):
+        if final_sum[i] == 0 or final_sum[i] == sample_count*sub_population_count*2:
+            monoallelic_loci = [i] + monoallelic_loci
+    monoallelic_loci = sorted(monoallelic_loci, reverse=True)
 
-nb_ignored_loci = len(monoallelic_loci)
-# Generate the two files
-with open(get_filename('mixfile.txt'), 'w') as mixfile:
-    with open(get_filename('haploiso.txt'), 'w') as haplofile:
-        print(sub_population_count, nb_loci - nb_ignored_loci, 2, 1, file=mixfile)
-        print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
-        for i in range(0, nb_loci - nb_ignored_loci):
-            print('Loc', i+1, sep='_', file=mixfile);
-        for individual in sample.individuals():
-            genotype = individual.genotype();
-            print(1 if individual.sex() == 1 else 0,
-                  genotype[nb_loci],
-                  individual.info('carbon'),
-                  individual.info('nitrogen'),
-                      int(individual.info('native_breeding_ground')),
-                  file=haplofile, sep=' ')
-            print(int(individual.info('native_breeding_ground')+1), end=' ', file=mixfile)
-            for i in range(0, nb_loci):
-                if i not in monoallelic_loci:
-                    print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=mixfile)
-            print(file=mixfile);
+    nb_ignored_loci = len(monoallelic_loci)
+    # Generate the two files
+    with open(get_filename('mixfile.txt'), 'w') as mixfile:
+        with open(get_filename('haploiso.txt'), 'w') as haplofile:
+            print(sub_population_count, nb_loci - nb_ignored_loci, 2, 1, file=mixfile)
+            print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
+            for i in range(0, nb_loci - nb_ignored_loci):
+                print('Loc', i+1, sep='_', file=mixfile);
+            for individual in sample.individuals():
+                genotype = individual.genotype();
+                print(1 if individual.sex() == 1 else 0,
+                      genotype[nb_loci],
+                      individual.info('carbon'),
+                      individual.info('nitrogen'),
+                          int(individual.info('native_breeding_ground')),
+                      file=haplofile, sep=' ')
+                print(int(individual.info('native_breeding_ground')+1), end=' ', file=mixfile)
+                for i in range(0, nb_loci):
+                    if i not in monoallelic_loci:
+                        print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=mixfile)
+                print(file=mixfile);
+
+
+if __name__ == '__main__':
+    runSimulation(
+        [pop_staticPhaseEnd],
+        minMatingAge,
+        maxMatingAge,
+        gen,
+        mitochondrial_file = "mtdna_1.single.txt",
+        snp_file = 'snp_1.single.txt'
+    )
