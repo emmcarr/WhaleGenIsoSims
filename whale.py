@@ -589,10 +589,10 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
             # of genetic differentiation.
             
             # Construct Fst statistic 
-            sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
+            sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=1),
             # number of males
             sim.Stat(numOfMales=True, begin = 73, step = 1),
-            sim.PyEval(r"'\tFst=%.3f \n' % (F_st_AB)", step=10), #Print Fst every 10 steps
+            sim.PyEval(r"'\tFst=%.3f \n' % (F_st_AB)", step=1), #Print Fst every 10 steps
             # added this now, to calculate the allele frequencies in selected loci
             ##sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10),
             ##sim.PyEval(
@@ -614,7 +614,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
         finalOps = sim.Stat(alleleFreq=0, vars=['alleleFreq_sp']),
         gen = 83
     )
-    print("HERE")
+
     pop.vars()
 
     # print out population size and allele frequency
@@ -622,8 +622,6 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
         print('%s (%d): %.4f' % (name, pop.subPopSize(name), 
             pop.dvars(idx).alleleFreq[0][0]))
     
-    
-
     viewVars(pop.vars(), gui=False)
     sim.dump(pop)
 
