@@ -566,7 +566,8 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
                #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
                output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
                #output="!'dump_gen_%d.csv' % gen",
-               step=1, begin=75
+               step=1, begin=75,
+               gui='batch'
            )
         ],
         matingScheme = matingScheme,
