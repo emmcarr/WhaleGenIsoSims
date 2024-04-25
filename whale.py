@@ -100,6 +100,8 @@ pop_currentGen	= 2138 #year 2005, current population doubles from last generatio
 pop_hopefulFuture	= 4000 #year 2030, can we be this hopeful?
 
 
+
+
 def get_filename(filename, seed=SEED, results_dir=RESULTS_DIR):
     """
     Return a unique filename in the output directory with the random seed preprepended:
@@ -113,36 +115,40 @@ def get_filename(filename, seed=SEED, results_dir=RESULTS_DIR):
     return Path(results_dir) / ("%s_%s" % (seed, filename))
 
 
-def demo(gen, pop):  # demographics function to control population growth (actually birth rate now).
-                     # number of bottlenecks and the severities are as agreed on 01.09.2009. 
-                     #Check the generation "names" from the beginning of the script
-
+def demo(gen, pop):
+    """
+    Demographics function to control population growth (actually birth rate now).
+    number of bottlenecks and the severities are as agreed on 01.09.2009. 
+    Check the generation "names" from the beginning of the script
+    """
+    
+    # SJG: todo refactor
     if gen < staticPhaseEnd:
-        return [pop_staticPhaseEnd, pop_staticPhaseEnd]
+        return [pop_staticPhaseEnd for i in range(0, pop.numSubPop())]
     
     elif gen < firstDecline:
-        return [pop_firstDecline, pop_firstDecline] 
+        return [pop_firstDecline for i in range(0, pop.numSubPop())]
     
     elif gen < secondDecline:
-        return [pop_secondDecline, pop_secondDecline]
+        return [pop_secondDecline for i in range(0, pop.numSubPop())]
     
     elif gen < thirdDecline:
-        return [pop_thirdDecline, pop_thirdDecline]
+        return [pop_thirdDecline for i in range(0, pop.numSubPop())]
 
     elif gen < bottleNeck:
-        return [pop_bottleNeck, pop_bottleNeck]
+        return [pop_bottleNeck for i in range(0, pop.numSubPop())]
     
     elif gen < firstRecovery:
-        return [pop_firstRecovery, pop_firstRecovery]
+        return [pop_firstRecovery for i in range(0, pop.numSubPop())]
 
     elif gen < secondRecovery:
-        return [pop_secondRecovery, pop_secondRecovery]
+        return [pop_secondRecovery for i in range(0, pop.numSubPop())]
 
     elif gen < currentGen:
-        return [pop_currentGen, pop_currentGen]
+        return [pop_currentGen for i in range(0, pop.numSubPop())]
     
     else:
-        return [pop_hopefulFuture, pop_hopefulFuture]
+        return [pop_hopefulFuture for i in range(0, pop.numSubPop())]
 
 
 # =============================================================================
@@ -166,7 +172,6 @@ def demo(gen, pop):  # demographics function to control population growth (actua
 
 
 def overspillLethalEvent(pop, numRemovables):
-
     if numRemovables <= 0:
         return True
     else:
@@ -181,59 +186,58 @@ def overspillLethalEvent(pop, numRemovables):
 
 
 def removeOverspill(pop):
-
+    # SJG: todo refactor
     gen = pop.dvars().gen
-    
     if gen <= staticPhaseEnd:
-        nextSubPopSizes = [pop_staticPhaseEnd, pop_staticPhaseEnd]
+        nextSubPopSizes = [pop_staticPhaseEnd for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed 
         overspillLethalEvent(pop, numRemovables)
 
     elif gen == firstDecline:
-        nextSubPopSizes = [pop_firstDecline, pop_firstDecline]  
+        nextSubPopSizes = [pop_firstDecline for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed 
         overspillLethalEvent(pop, numRemovables)
     
     elif gen == secondDecline:
-        nextSubPopSizes = [pop_secondDecline, pop_secondDecline]
+        nextSubPopSizes = [pop_secondDecline for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == thirdDecline:
-        nextSubPopSizes = [pop_thirdDecline, pop_thirdDecline]
+        nextSubPopSizes = [pop_thirdDecline for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == bottleNeck:
-        nextSubPopSizes = [pop_bottleNeck, pop_bottleNeck]
+        nextSubPopSizes = [pop_bottleNeck for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == firstRecovery:
-        nextSubPopSizes = [pop_firstRecovery, pop_firstRecovery]
+        nextSubPopSizes = [pop_firstRecovery for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == secondRecovery:
-        nextSubPopSizes = [pop_secondRecovery, pop_secondRecovery]
+        nextSubPopSizes = [pop_secondRecovery for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     elif gen == currentGen:
-        nextSubPopSizes =  [pop_currentGen, pop_currentGen]
+        nextSubPopSizes = [pop_currentGen for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
         
     else: #final rise
-        nextSubPopSizes = [pop_hopefulFuture, pop_hopefulFuture]
+        nextSubPopSizes = [pop_hopefulFuture for i in range(0, pop.numSubPop())] 
         maxAllowed = sum(nextSubPopSizes)
         numRemovables = pop.popSize() - maxAllowed
         overspillLethalEvent(pop, numRemovables)
@@ -303,7 +307,7 @@ population_growing_period = 10 # in years
 
 def postop_processing(pop):
     for i in range(0, pop.numSubPop()):
-        for individual in pop.individuals(i):
+        for j, individual in enumerate(pop.individuals(i)):
             # The feeding ground is fixed at birth (inherited from mother)
             # The C and N values are sampled from a distribution based on the 
             # feeding ground each year
@@ -325,23 +329,28 @@ def postop_processing(pop):
                     #print("Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
                     individual.setInfo(individual.info('native_breeding_ground'), 'migrate_to')
                 # Otherwise, migrate them to another population with a probabilistic model
-                elif np.random.uniform() < deviant_proportion:
+                # (only if there is more than one subPopulation!)
+                elif pop.numSubPop() > 1 and np.random.uniform() < deviant_proportion:
                     # Individual will migrate.
                     new_population = (i + 1) % 2
                     #print("Individual ", individual.info('ind_id'), " will migrate to ", new_population)
                     individual.setInfo(new_population, 'migrate_to')
     return True
 
+
 def init_native_breeding_grounds(pop):
-    # Assign the native breeding ground to each individual. I don't know how to do this except by doing it individually
+    # Assign the native breeding ground to each individual. 
+    # I don't know how to do this except by doing it individually
     # Fortunately, we can just inherit this maternally, so it only has to be run once
     for i in range(0, pop.numSubPop()):
         for individual in pop.individuals(i):
             individual.setInfo(i, 'native_breeding_ground');
     return True
 
+
 def configure_new_population_size(gen, pop):
-    # It is critical to specify the sub population sizes independently of each other. Each sub-population may be a different size
+    # It is critical to specify the sub population sizes independently of each other. 
+    # Each sub-population may be a different size
     if (gen < population_growing_period):
         return [pop.subPopSize(0) * population_growth_rate]
     else:
@@ -388,32 +397,30 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     sub_population_names = tuple(
         string.ascii_uppercase[i] for (i, s) in enumerate(sub_population_size)
     )
-        
+    
+    individual_count = pop_staticPhaseEnd
+    
     # =============================================================================
     # Population
     # =============================================================================
-
+    
+    
     pop = sim.Population(
-        size=pop_staticPhaseEnd,
+        size=individual_count,
         ploidy=2,
         loci=[nb_loci, 1],
-        ancGen=2,#Number of the most recent ancestral generations 
-        #to keep during evolution, i.e., ancGen=2 keep parental and
-        #grandparental generations coexisting with the newest one.
+        # Number of the most recent ancestral generations  to keep during evolution, i.e., 
+        # ancGen=2 keep parental and grandparental generations coexisting with the newest one.
+        ancGen=2,
         infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'],
         subPopNames=sub_population_names,
         chromTypes=[sim.AUTOSOME, sim.MITOCHONDRIAL])
 
-    # Create an attribute on each individual called 'age'. Set it to a random number 
-    # between 0 and maxMatingAge
-    # Note that size is a vector - the size of each population. We have to sum these
-    #  to get the total number of individuals
-    #i ndividual_count = sum(sub_population_size)
-    individual_count = pop_staticPhaseEnd * 2
-
-    # Assign a random age to each individual
+    # Create an attribute on each individual called 'age'. 
+    # Set it to a random number between 0 and maxMatingAge
     pop.setIndInfo(
-        [random.randint(0, maxMatingAge) for x in range(individual_count)], 'age')
+        [random.randint(0, maxMatingAge) for x in range(individual_count)],
+        'age')
     # Assign a random feeding ground to each individual
     pop.setIndInfo(
         [random.randint(0, numberOfFeedingGrounds-1) for x in range(individual_count)],
@@ -457,14 +464,21 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
         ])
     )
 
-    ## sim.dump(pop)
+    # sim.dump(pop)
     # =============================================================================
     # MK: Check if VSPs are initiallized properly
     # =============================================================================
-    # pop.subPopName([0,0])
-    # pop.subPopName([0,1])
-    # pop.subPopName([1,7])
-    # pop.subPopName([1,4])
+    # print(pop.subPopName([0,0]))
+    # print(pop.subPopName([0,1]))
+    # print(pop.subPopName([0,2]))
+    # print(pop.subPopName([0,3]))
+    # print(pop.subPopName([0,4]))
+    # print(pop.subPopName([0,5]))
+    # print(pop.subPopName([0,6]))
+    # print(pop.subPopName([0,7]))
+
+    
+
 
     ##############################################################################
     # =============================================================================
@@ -478,22 +492,56 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     #To fix the weight=-1 problem, I'll use BoPeng's solution
     pop.dvars().demo = demo
     sim.stat(pop, popSize=True)
+    
+    
     #BO: is important here because the expression 
     #popSize > demo(gen) needs demo in the population's namespace.
 
-
-    ##January 14th, 2024
-    #I successfully installed the patch now, and then I can try to make it work as
-    #it was when I first asked for Bo's help:
-
-    print("---")
-    print("SIMON::")
+    # set up matingScheme
+    # age <= maxAge, copy to the next generation (weight=-1)
+    # subPops is a list of tuples that will participate in mating. The tuple is a
+    # pair (subPopulation, virtualSubPopulation)
+    #
+    # First, we propagate (clone) all individuals in all subpopulations (and all VSPs
+    # except the ones who are now in the VSP of deceased individuals) to the next generation
+    #
+    # MK: if weights are negative, they are multiplied to their parental subpopulation; 
+    #   For example: 
+    #       if parental pop = (500, 1000), and weight = -2, 
+    #       next generation pop= (1000, 2000). 
+    #   For weight -1, it keeps the number of individuals from the parental generation.
+    #
+    # ALSO: if there is a mix of negative and positive weights, the negative will be
+    # processed first.
+    matingScheme = sim.HeteroMating(
+        [
+            sim.CloneMating(
+                ops=[sim.CloneGenoTransmitter(chroms=[0,1])],
+                # MK:6 here is because two of the eight virtual subpopulations are deceased.
+                subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], 
+                weight=-1
+            ), 
+            # Then we simulate random mating only in VSP 1 (i.e. reproductively mature individuals)
+            # within subpopulation (breeding/winter grounds)
+            sim.RandomMating(
+                ops=[
+                     sim.MitochondrialGenoTransmitter(),
+                     sim.MendelianGenoTransmitter(),
+                     sim.IdTagger(),
+                     sim.InheritTagger(mode=sim.MATERNAL, infoFields=['feeding_ground']),
+                     sim.InheritTagger(mode=sim.MATERNAL, infoFields=['native_breeding_ground']),
+                     sim.PedigreeTagger(),
+                     sim.PyOperator(report)
+                ],
+                subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
+                weight=0 # recommended by Bo:
+                # The second mating scheme should have weight 0, and generate the rest of the offspring. 
+                # If you get an error, it probably means the parental virtual subpopulation is empty.
+            )
+        ],
+        subPopSize=demo
+    )
     
-    print(sub_population_count)
-    print(sub_population_names)
-    print("---")
-
-
     pop.evolve(
         initOps = [
             sim.InitSex(),
@@ -502,94 +550,67 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
         ] +
         [ sim.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
         [ sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
+        ## SJG: why is nb_loci - 1 in the above? this gives us 99 loci not 100.
+
         # increase age by 1
         preOps = [
-            sim.InfoExec('age += 1'),
-            sim.Stat(popSize=True), #print pop size in each generation
-            sim.PyEval(r'"%s\n" % subPopSize'),
-            # randomly reduce population size so that parent generation fits
-            sim.PyOperator(func=removeOverspill),
-            # Export population in each generation
-            Exporter(
-                format='csv',
-                infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
-                #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
-                output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
-                #output="!'dump_gen_%d.csv' % gen",
-                step=1, begin=75
-            )
+           sim.InfoExec('age += 1'),
+           sim.Stat(popSize=True), #print pop size in each generation
+           sim.PyEval(r'"Generation %d - %s individuals\n" % (gen, subPopSize)'),
+           # randomly reduce population size so that parent generation fits
+           sim.PyOperator(func=removeOverspill),
+           # Export population in each generation
+           Exporter(
+               format='csv',
+               infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
+               #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
+               output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
+               #output="!'dump_gen_%d.csv' % gen",
+               step=1, begin=75
+           )
         ],
-        matingScheme = sim.HeteroMating([
-            # age <= maxAge, copy to the next generation (weight=-1)
-            # subPops is a list of tuples that will participate in mating. The tuple is a pair (subPopulation, virtualSubPopulation)
-            # First, we propagate (clone) all individuals in all subpopulations (and all VSPs except the ones who are now in the VSP of deceased individuals) to the next generation
-            sim.CloneMating(
-                ops=[sim.CloneGenoTransmitter(chroms=[0,1])],
-                #MK:6 here is because two of the eight virtual subpopulations are deceased.
-                subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], 
-                weight=-1
-            ), 
-                #MK: if weights are negative, they are multiplied to their parental subpopulation; 
-                # For example: 
-                #  if parental pop = (500, 1000), and weight = -2, 
-                #  next generation pop= (1000, 2000). 
-                # For weight -1, it keeps the number of individuals from the parental generation.
-                #
-                # ALSO: if there is a mix of negative and positive weights, the negative will be
-                # processed first.
-            # Then we simulate random mating only in VSP 1 (i.e. reproductively mature individuals)
-            # within subpopulation (breeding/winter grounds)
-            sim.RandomMating(
-                ops=[sim.MitochondrialGenoTransmitter(),
-                     sim.MendelianGenoTransmitter(),
-                     sim.IdTagger(),
-                     sim.InheritTagger(mode=sim.MATERNAL, infoFields=['feeding_ground']),
-                     sim.InheritTagger(mode=sim.MATERNAL, infoFields=['native_breeding_ground']),
-                     sim.PedigreeTagger(),
-                     #sim.PyOperator((report))
-                ],
-                subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
-                weight=0 #recommended by Bo:
-                # The second mating scheme should have weight 0, and generate the rest of the offspring. 
-                # If you get an error, it probably means the parental virtual subpopulation is empty.
-             )],
-            subPopSize=demo),
-            # REMOVING TRAJECTORY TO SEE IF IT WORKS NOW:        
-            # MK: we decided to keep the same weight as the mitochondrial transmitter.
-            # sim.ControlledRandomMating(subPopSize=model10, freqFunc=traj.func(), weight=1)]
-       
+        matingScheme = matingScheme,
+        
+        # REMOVING TRAJECTORY TO SEE IF IT WORKS NOW:        
+        # MK: we decided to keep the same weight as the mitochondrial transmitter.
+        # sim.ControlledRandomMating(subPopSize=model10, freqFunc=traj.func(), weight=1)]
         postOps = [
-
-        # Determine the isotopic ratios in individuals
-        sim.PyOperator(func=postop_processing),
-        sim.Migrator(mode=sim.BY_IND_INFO),
+            # Determine the isotopic ratios in individuals
+            sim.PyOperator(func=postop_processing),
+            sim.Migrator(mode=sim.BY_IND_INFO),
             # count the individuals in each virtual subpopulation
-            #sim.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (1,0), (1, 1), (1, 2)]),
+            sim.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7)]),
             # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
-            #sim.PyEval(r"'Size of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))")
+            sim.PyEval(r"'\tSize of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))"),
             # Alternatively, calculate the Fst
-            # FIXME: How does this actually work? Does it work for > 2 populations? I don't really understand it yet
-            # ELC: it is a calculation that partitions variance among and between populations, and can be calculated as a 
-            # global statistic or on a pairwise basis. We use it as an indication of genetic differentiation.
-
+            # ELC: it is a calculation that partitions variance among and between populations, and can 
+            # be calculated as a global statistic or on a pairwise basis. We use it as an indication
+            # of genetic differentiation.
+            
+            # Construct Fst statistic 
             sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=10),
+            # number of males
             sim.Stat(numOfMales=True, begin = 73, step = 1),
-            sim.PyEval(r"'Fst=%.3f \n' % (F_st_AB)", step=10), #Print Fst every 10 steps
-            sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10), #added this now, to
-            #calculate the allele frequencies in selected loci
-           sim.PyEval(
-              r"'%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n' % ("
-               "subPop[0]['alleleFreq'][1][1], subPop[0]['alleleFreq'][2][1], subPop[0]['alleleFreq'][3][1],"
-               "subPop[0]['alleleFreq'][4][1], subPop[0]['alleleFreq'][5][1], subPop[0]['alleleFreq'][6][1],"
-               "subPop[0]['alleleFreq'][7][1], subPop[0]['alleleFreq'][8][1], subPop[0]['alleleFreq'][9][1],"
-               "subPop[0]['alleleFreq'][100][1], subPop[1]['alleleFreq'][1][1], subPop[1]['alleleFreq'][2][1],"
-               "subPop[1]['alleleFreq'][3][1], subPop[1]['alleleFreq'][4][1], subPop[1]['alleleFreq'][5][1],"
-               "subPop[1]['alleleFreq'][6][1], subPop[1]['alleleFreq'][7][1], subPop[1]['alleleFreq'][8][1],"
-               "subPop[1]['alleleFreq'][9][1], subPop[1]['alleleFreq'][100][1])", step=1, begin = 73),
-       
-            #sim.PyOperator(func=lethalEvent)
+            sim.PyEval(r"'\tFst=%.3f \n' % (F_st_AB)", step=10), #Print Fst every 10 steps
+            # added this now, to calculate the allele frequencies in selected loci
+            ##sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10),
+            ##sim.PyEval(
+            ##  r"""'%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n' % (
+            ##    subPop[0]['alleleFreq'][1][1],
+            ##    subPop[0]['alleleFreq'][2][1],
+            ##    subPop[0]['alleleFreq'][3][1],
+            ##    subPop[0]['alleleFreq'][4][1],
+            ##    subPop[0]['alleleFreq'][5][1],
+            ##    subPop[0]['alleleFreq'][6][1],
+            ##    subPop[0]['alleleFreq'][7][1],
+            ##    subPop[0]['alleleFreq'][8][1],
+            ##    subPop[0]['alleleFreq'][9][1],
+            ##    subPop[0]['alleleFreq'][100][1]
+            ##   )
+            ##   """, step=1, begin = 73),
+            # sim.PyOperator(func=lethalEvent)
         ],
-        finalOps= sim.Stat(alleleFreq=0, vars=['alleleFreq_sp']),
+        finalOps = sim.Stat(alleleFreq=0, vars=['alleleFreq_sp']),
         gen = 83
     )
     print("HERE")
