@@ -42,6 +42,9 @@ if not RESULTS_DIR.exists():
     RESULTS_DIR.mkdir()
 
 
+# which generation to begin logging at
+BEGIN_LOGGING_AT_GENERATION = 1
+
 
 # =============================================================================
 # MK: Population numbers used as a reference here
@@ -563,10 +566,11 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
            Exporter(
                format='csv',
                infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
-               #output="!'dump_gen_%d.csv' % gen", step=1, begin=75
+               #output="!'dump_gen_%d.csv' % gen", step=1, begin=BEGIN_LOGGING_AT_GENERATION
                output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
                #output="!'dump_gen_%d.csv' % gen",
-               step=1, begin=75,
+               step=1,
+               begin=BEGIN_LOGGING_AT_GENERATION,
                gui='batch'
            )
         ],
