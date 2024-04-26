@@ -45,6 +45,38 @@ if not RESULTS_DIR.exists():
 # which generation to begin logging at
 BEGIN_LOGGING_AT_GENERATION = 1
 
+minMatingAge = 6 ## minimum age at first reproduction
+maxMatingAge = 50 ## max age of reproduction_
+gen = 82 ## for trajectory, based on the model6
+nb_loci = 100 ## number of loci to simulate
+scenario_id = "1"
+
+## setting up the feeding ground variables
+## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
+## deviant proportion: proportion of males that will go to non-natal wintering 
+# ground for one winter/breeding opportunity
+mean_C = [16.7, 20.5] 
+variance_C = [3.24, 2.89]
+mean_N = [5.5, 8.7]
+variance_N = [0.25, 0.49]
+deviant_proportion = 0.1
+
+## Sample count is number of samples taken per wintering ground
+numberOfFeedingGrounds = 1
+sample_count = 60
+
+
+# Needed a way to ensure that the simulations begin with whales that are related 
+# and show correlation between 
+# SI and genetic data. Did this by rapidly expanding population, creating many offspring
+# For the first 10 generations, we expand the next generation by 7% (this leads 
+# to a rough doubling after 10 years).
+# After the population_growing_period, each subpopulation size is kept constant
+population_growth_rate = 1.07 
+population_growing_period = 10 # in years
+
+
+
 
 # =============================================================================
 # MK: Population numbers used as a reference here
@@ -276,37 +308,6 @@ def report(dad, mom, off):
 ## virtual subpopulations (VSPs) are used to represent feeding ground and age-sex classes
 
 ## set parameters for simulation - breeding ground which are subpopulations in simupop terms
-
-minMatingAge = 6 ## minimum age at first reproduction
-maxMatingAge = 50 ## max age of reproduction_
-gen = 82 ## for trajectory, based on the model6
-nb_loci = 100 ## number of loci to simulate
-scenario_id = "1"
-
-## setting up the feeding ground variables
-## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
-## deviant proportion: proportion of males that will go to non-natal wintering 
-# ground for one winter/breeding opportunity
-mean_C = [16.7, 20.5] 
-variance_C = [3.24, 2.89]
-mean_N = [5.5, 8.7]
-variance_N = [0.25, 0.49]
-deviant_proportion = 0.1
-
-## Sample count is number of samples taken per wintering ground
-numberOfFeedingGrounds = 1
-sample_count = 60
-
-
-# Needed a way to ensure that the simulations begin with whales that are related 
-# and show correlation between 
-# SI and genetic data. Did this by rapidly expanding population, creating many offspring
-# For the first 10 generations, we expand the next generation by 7% (this leads 
-# to a rough doubling after 10 years).
-# After the population_growing_period, each subpopulation size is kept constant
-population_growth_rate = 1.07 
-population_growing_period = 10 # in years
-
 
 def postop_processing(pop):
     for i in range(0, pop.numSubPop()):
