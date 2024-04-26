@@ -275,7 +275,7 @@ def report(dad, mom, off):
 ## set parameters for simulation - breeding ground which are subpopulations in simupop terms
 
 minMatingAge = 6 ## minimum age at first reproduction
-maxMatingAge = 50 ## max age of reproduction
+maxMatingAge = 50 ## max age of reproduction_
 gen = 82 ## for trajectory, based on the model6
 nb_loci = 100 ## number of loci to simulate
 scenario_id = "1"
@@ -699,26 +699,32 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     monoallelic_loci = sorted(monoallelic_loci, reverse=True)
 
     nb_ignored_loci = len(monoallelic_loci)
-    # Generate the two files
-    with open(get_filename('mixfile.txt'), 'w') as mixfile:
-        with open(get_filename('haploiso.txt'), 'w') as haplofile:
-            print(sub_population_count, nb_loci - nb_ignored_loci, 2, 1, file=mixfile)
-            print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
-            for i in range(0, nb_loci - nb_ignored_loci):
-                print('Loc', i+1, sep='_', file=mixfile);
-            for individual in sample.individuals():
-                genotype = individual.genotype();
-                print(1 if individual.sex() == 1 else 0,
-                      genotype[nb_loci],
-                      individual.info('carbon'),
-                      individual.info('nitrogen'),
-                          int(individual.info('native_breeding_ground')),
-                      file=haplofile, sep=' ')
-                print(int(individual.info('native_breeding_ground')+1), end=' ', file=mixfile)
-                for i in range(0, nb_loci):
-                    if i not in monoallelic_loci:
-                        print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=mixfile)
-                print(file=mixfile);
+    
+    # Generate haploiso file
+    with open(get_filename('haploiso.txt'), 'w') as haplofile:
+        print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
+        for individual in sample.individuals():
+            genotype = individual.genotype();
+            print(
+                1 if individual.sex() == 1 else 0,
+                genotype[nb_loci],
+                individual.info('carbon'),
+                individual.info('nitrogen'),
+                int(individual.info('native_breeding_ground')),
+                file=haplofile, sep=' ')
+    
+    # Generate mix file
+    # with open(get_filename('mixfile.txt'), 'w') as mixfile:
+    #     print(sub_population_count, nb_loci - nb_ignored_loci, 2, 1, file=mixfile)
+    #     for i in range(0, nb_loci - nb_ignored_loci):
+    #         print('Loc', i+1, sep='_', file=mixfile);
+    #     for individual in sample.individuals():
+    #         genotype = individual.genotype();
+    #         print(int(individual.info('native_breeding_ground')+1), end=' ', file=mixfile)
+    #         for i in range(0, nb_loci):
+    #             if i not in monoallelic_loci:
+    #                 print(genotype[i]+1, genotype[i+nb_loci+1]+1, ' ', end='', sep='', file=mixfile)
+    #         print(file=mixfile)
 
 
 if __name__ == '__main__':
