@@ -53,12 +53,13 @@ scenario_id = "1"
 
 ## setting up the feeding ground variables
 ## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
+mean_C = [16.7, 20.5, 26.0] 
+variance_C = [3.24, 2.89, 3.0]
+mean_N = [5.5, 8.7, 5.0]
+variance_N = [0.25, 0.49, 0.4]
+
 ## deviant proportion: proportion of males that will go to non-natal wintering 
 # ground for one winter/breeding opportunity
-mean_C = [16.7, 20.5] 
-variance_C = [3.24, 2.89]
-mean_N = [5.5, 8.7]
-variance_N = [0.25, 0.49]
 deviant_proportion = 0.1
 
 ## Sample count is number of samples taken per wintering ground
@@ -67,8 +68,8 @@ sample_count = 60
 
 
 # Needed a way to ensure that the simulations begin with whales that are related 
-# and show correlation between 
-# SI and genetic data. Did this by rapidly expanding population, creating many offspring
+# and show correlation between SI and genetic data. 
+# Did this by rapidly expanding population, creating many offspring
 # For the first 10 generations, we expand the next generation by 7% (this leads 
 # to a rough doubling after 10 years).
 # After the population_growing_period, each subpopulation size is kept constant
