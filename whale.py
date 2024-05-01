@@ -9,6 +9,11 @@
 #Github: marina-klemm
 
 
+# TODO ask Emma about numberOfFeedingGrounds this was 1, but have set to 3 to match C/N
+# TODO ask about Emma about `native_breeding_ground` always set to zero
+# TODO migrate_to is always zero
+
+
 # =============================================================================
 # Loading all packages
 # =============================================================================
@@ -49,7 +54,6 @@ minMatingAge = 6 ## minimum age at first reproduction
 maxMatingAge = 50 ## max age of reproduction_
 gen = 82 ## for trajectory, based on the model6
 nb_loci = 100 ## number of loci to simulate
-scenario_id = "1"
 
 ## setting up the feeding ground variables
 ## mean (mean_) and variance (variance_) set for both C and N for two feeding grounds
@@ -63,7 +67,7 @@ variance_N = [0.25, 0.49, 0.4]
 deviant_proportion = 0.1
 
 ## Sample count is number of samples taken per wintering ground
-numberOfFeedingGrounds = 1
+numberOfFeedingGrounds = 3 
 sample_count = 60
 
 
@@ -75,8 +79,6 @@ sample_count = 60
 # After the population_growing_period, each subpopulation size is kept constant
 population_growth_rate = 1.07 
 population_growing_period = 10 # in years
-
-
 
 
 # =============================================================================
@@ -291,8 +293,22 @@ def removeOverspill(pop):
 def report(dad, mom, off):
    # print('{} ({}) from {} {}'.format(off.ind_id, off.sex(), dad.ind_id, mom.ind_id))
    #instead of printing it into the terminal, create a file for debugging:
-   with open(get_filename('parents_check.txt'), 'a') as file:
-       file.write('{} ({}) from {} {}\n'.format(off.ind_id, off.sex(), dad.ind_id, mom.ind_id))
+   with open(get_filename('parents_check.txt'), 'a') as handle:
+       row = [
+           off.ind_id,
+           off.sex,
+           dad.ind_id,
+           dad.sex,
+           mom.ind_id,
+           mom.sex,
+           off.info('nitrogen'),
+           off.info('carbon'),
+           off.info('feeding_ground'),
+           off.info('native_breeding_ground'),
+           off.info('migrate_to'),
+       ]
+       handle.write("\t".join([str(r) for r in row]))
+       handle.write("\n")
    return True
 
 
@@ -322,23 +338,24 @@ def postop_processing(pop):
             individual.setInfo(np.random.normal(mean_C[feeding_ground], np.sqrt(variance_C[feeding_ground])), 'carbon')
             individual.setInfo(np.random.normal(mean_N[feeding_ground], np.sqrt(variance_N[feeding_ground])), 'nitrogen')
 
-            # print("Individual ", individual.info('ind_id'), " has native breeding ground ", 
-            # individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
+            print("MIGRATION:: Individual ", individual.info('ind_id'), " has native breeding ground ",
+            individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
             # Migration
             # Initially, set the migrate_to to the current population of the individual
             individual.setInfo(i, 'migrate_to')
             # If the individual is a male, then we can optionally migrate them using the migrate_to info field
             if individual.sex() == sim.MALE and individual.info('age') >= minMatingAge:
+                print("MIGRATION:: ", i, individual.info('native_breeding_ground'))
                 # If the individual has already migrated, always move them back
                 if individual.info('native_breeding_ground') != i:
-                    #print("Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
+                    print("MIGRATION:: Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
                     individual.setInfo(individual.info('native_breeding_ground'), 'migrate_to')
                 # Otherwise, migrate them to another population with a probabilistic model
                 # (only if there is more than one subPopulation!)
                 elif pop.numSubPop() > 1 and np.random.uniform() < deviant_proportion:
                     # Individual will migrate.
                     new_population = (i + 1) % 2
-                    #print("Individual ", individual.info('ind_id'), " will migrate to ", new_population)
+                    print("MIGRATION:: Individual ", individual.info('ind_id'), " will migrate to ", new_population)
                     individual.setInfo(new_population, 'migrate_to')
     return True
 
@@ -347,9 +364,11 @@ def init_native_breeding_grounds(pop):
     # Assign the native breeding ground to each individual. 
     # I don't know how to do this except by doing it individually
     # Fortunately, we can just inherit this maternally, so it only has to be run once
+    print(pop.numSubPop())
     for i in range(0, pop.numSubPop()):
         for individual in pop.individuals(i):
-            individual.setInfo(i, 'native_breeding_ground');
+            print('init_native_breeding_grounds::init subpopulation', i)
+            individual.setInfo(i, 'native_breeding_ground')
     return True
 
 
@@ -536,7 +555,8 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
                      sim.InheritTagger(mode=sim.MATERNAL, infoFields=['feeding_ground']),
                      sim.InheritTagger(mode=sim.MATERNAL, infoFields=['native_breeding_ground']),
                      sim.PedigreeTagger(),
-                     sim.PyOperator(report)
+                     # debug logging, but this is largely unnecessary now given the extended output saved
+                     # sim.PyOperator(report)
                 ],
                 subPops=[(sub_population, 7) for sub_population in range(0, sub_population_count)],
                 weight=0 # recommended by Bo:
@@ -554,8 +574,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
             sim.PyOperator(func=init_native_breeding_grounds)
         ] +
         [ sim.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
-        [ sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci-1)],
-        ## SJG: why is nb_loci - 1 in the above? this gives us 99 loci not 100.
+        [ sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci)],
 
         # increase age by 1
         preOps = [
@@ -597,7 +616,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
             # Construct Fst statistic 
             sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=1),
             # number of males
-            sim.Stat(numOfMales=True, begin = 73, step = 1),
+            sim.Stat(numOfMales=True, begin=73, step=1),
             sim.PyEval(r"'\tFst=%.3f \n' % (F_st_AB)", step=1), #Print Fst every 10 steps
             # added this now, to calculate the allele frequencies in selected loci
             ##sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10),
