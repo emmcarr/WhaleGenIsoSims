@@ -1,0 +1,104 @@
+## Summary Statistics R code
+
+## 1. haplotype diversity summary statistics code
+## using gene diversity from Nei (1987), p.180, as also calculated in Arlequin
+## all that is needed is output file from simupop sims
+
+## haplotype diversity from Nei 1987
+# H=n/(n.samp-1)*(1-sum(k,p)^2)
+# H=((n.samp)/(n.samp-1))*(1-sum(samp.prop^2))
+# where n.samp is sample size
+# k is number of haplotypes
+# pi is the frequency of the ith haplotype
+# k and pi are combined to the proportion of the sample represented by each haplotype samp.prop
+
+## variance in hap diversity 
+## v.H=(2/(n.samp*(n.samp-1)))*(2*(n.samp-2))*
+##      ((sum(samp.prop^3)-sum(samp.prop^2)^2)+sum(samp.prop^2)-sum(samp.prop^2)^2)
+
+
+# read in data from output file - haplo-isofile
+hap.dat<-read.table("haploiso.txt", header=TRUE, sep=" ")
+hap.tab<-t(as.matrix(table(hap.dat$haplotype.)))
+
+# estimate haplotype number, diversity and variance
+
+samp.hapN<-ncol(hap.tab)
+n.samp<-sum(hap.tab)
+samp.prop<-hap.tab/n.samp
+samp.H<-((n.samp)/(n.samp-1))*(1-sum(nz.prop^2))
+v.H.samp<-(2/(n.samp*(n.samp-1)))*(2*(n.samp-2))*((sum(samp.prop^3)-sum(samp.prop^2)^2)+sum(samp.prop^2)-sum(samp.prop^2)^2)
+
+## 2. isotope data output analysis
+
+## code for analysing simulations
+## produced by Dr Geraldine Busquets-Vass and adapted by Emma Carroll
+
+## load packages
+
+library(ggplot2)
+library(dplyr)
+library(r2symbols)
+library(ggpubr)
+library(nicheROVER)
+
+# read data file
+iso_dataN <- read.csv("SRW_data_for_nicheROVER.csv")
+
+# generate parameter draws from the "default" posteriors of each timepoint of the population
+nsamples <- 1e4
+system.time({
+  iso_dataN.par <- tapply(1:nrow(iso_dataN), iso_dataN$species,
+                          function(ii) niw.post(nsamples = nsamples, X = iso_dataN[ii,2:3]))
+})
+
+# Calculate and display niche overlap estimates
+# We use the function overlap() to calculate overlap metric estimates from a specified number of 
+# Monte Carlo draws (nsamples) from the iso_dataN.par parameter list. It is necessary to specify the α-level. 
+# In this case, we have decided to calculate the overlap metric at two niche regions sizes for comparison: 
+# alpha=0.95 and alpha=0.99, or 95% and 99%.
+
+# Then, we calculate the mean overlap metric between each species. Remember that the overlap metric is directional, 
+# such that it represents the probability that an individual from timepoint A (Species A) will be found in the niche of 
+# time point B (Species B)
+
+# niche overlap plots for 95% niche region sizes
+nsamples <- 10000
+iso_dataN.par <- tapply(1:nrow(iso_dataN), iso_dataN$species,
+                        function(ii) niw.post(nsamples = nsamples, X = iso_dataN[ii,2:3]))
+
+# Overlap calculation.
+# The overlap metric is the probability that a randomly drawn individual from species A
+# will be found within the niche region of species BB (for a given niche region size, e.g., alpha = .95)
+
+# use nsamples = nprob = 10000 (1e4) for higher accuracy.
+# the variable over.stat can be supplied directly to the overlap.plot function
+
+over.stat <- overlap(iso_dataN.par, nreps = nsamples, nprob = 1e3, alpha = c(.50, .95, 0.99))
+
+#The mean overlap metrics calculated across iteratations for both niche 
+#region sizes (alpha = .95 and alpha = .99) can be calculated and displayed in an array.
+over.mean <- apply(over.stat, c(1:2,4), mean)*100
+round(over.mean, 2)
+
+
+# Calculate and display niche size estimates
+# See ?niche.size for exactly how niche size is defined as a function of the parameters μ
+# and Σ. In a Bayesian context, we calculate the posterior distribution of niche size by species. 
+# This done by calculating the niche size for every posterior sample of μ and Σ
+
+# posterior distribution of (mu, Sigma) for each species
+nsamples <- 10000
+iso_dataN.par <- tapply(1:nrow(iso_dataN), iso_dataN$species,
+                        function(ii) niw.post(nsamples = nsamples, X = iso_dataN[ii,2:3]))
+
+# posterior distribution of niche size by species
+iso_dataN.size <- sapply(iso_dataN.par, function(spec) {
+  apply(spec$Sigma, 3, niche.size, alpha = .95)
+})
+
+# point estimate and standard error
+rbind(est = colMeans(iso_dataN.size),
+      se = apply(iso_dataN.size, 2, sd))
+
+## outputs to save include the niche size mean and se, and birectional overlap at each alpha value
