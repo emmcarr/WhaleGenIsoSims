@@ -8,12 +8,6 @@
 #Contact: marinaklemm@gmail.com
 #Github: marina-klemm
 
-
-# TODO ask Emma about numberOfFeedingGrounds this was 1, but have set to 3 to match C/N
-# TODO ask about Emma about `native_breeding_ground` always set to zero
-# TODO migrate_to is always zero
-
-
 # =============================================================================
 # Loading all packages
 # =============================================================================
@@ -66,8 +60,10 @@ variance_N = [0.25, 0.49, 0.4]
 # ground for one winter/breeding opportunity
 deviant_proportion = 0.1
 
+numberOfFeedingGrounds = len(mean_C)
+numberOfBreedingGrounds = 1 
+
 ## Sample count is number of samples taken per wintering ground
-numberOfFeedingGrounds = 3 
 sample_count = 60
 
 
@@ -152,6 +148,22 @@ def get_filename(filename, seed=SEED, results_dir=RESULTS_DIR):
     """
     return Path(results_dir) / ("%s_%s" % (seed, filename))
 
+
+def write_haploisofile(pop, param):
+    sample = drawRandomSample(pop, sizes=sample_count)
+    with open(get_filename('haploiso_%s.txt' % param), 'w') as haplofile:
+        print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
+        for individual in sample.individuals():
+            genotype = individual.genotype()
+            ##print('GT', [(i,g) for (i, g) in enumerate(genotype) if g != 0])
+            print(
+                1 if individual.sex() == 1 else 0,
+                genotype[nb_loci],
+                individual.info('carbon'),
+                individual.info('nitrogen'),
+                int(individual.info('native_breeding_ground')),
+                file=haplofile, sep=' ')
+    return True
 
 def demo(gen, pop):
     """
@@ -338,24 +350,24 @@ def postop_processing(pop):
             individual.setInfo(np.random.normal(mean_C[feeding_ground], np.sqrt(variance_C[feeding_ground])), 'carbon')
             individual.setInfo(np.random.normal(mean_N[feeding_ground], np.sqrt(variance_N[feeding_ground])), 'nitrogen')
 
-            print("MIGRATION:: Individual ", individual.info('ind_id'), " has native breeding ground ",
-            individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
+            ##print("MIGRATION:: Individual ", individual.info('ind_id'), " has native breeding ground ",
+            ## individual.info('native_breeding_ground'), " and is currently at breeding ground ", i)
             # Migration
             # Initially, set the migrate_to to the current population of the individual
             individual.setInfo(i, 'migrate_to')
             # If the individual is a male, then we can optionally migrate them using the migrate_to info field
             if individual.sex() == sim.MALE and individual.info('age') >= minMatingAge:
-                print("MIGRATION:: ", i, individual.info('native_breeding_ground'))
+                ##print("MIGRATION:: ", i, individual.info('native_breeding_ground'))
                 # If the individual has already migrated, always move them back
                 if individual.info('native_breeding_ground') != i:
-                    print("MIGRATION:: Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
+                    ##print("MIGRATION:: Moving individual ", individual.info('ind_id'), " back to their native breeding ground ", individual.info('native_breeding_ground'), " from temporary breeding ground ", i)
                     individual.setInfo(individual.info('native_breeding_ground'), 'migrate_to')
                 # Otherwise, migrate them to another population with a probabilistic model
                 # (only if there is more than one subPopulation!)
                 elif pop.numSubPop() > 1 and np.random.uniform() < deviant_proportion:
                     # Individual will migrate.
                     new_population = (i + 1) % 2
-                    print("MIGRATION:: Individual ", individual.info('ind_id'), " will migrate to ", new_population)
+                    ###print("MIGRATION:: Individual ", individual.info('ind_id'), " will migrate to ", new_population)
                     individual.setInfo(new_population, 'migrate_to')
     return True
 
@@ -364,10 +376,8 @@ def init_native_breeding_grounds(pop):
     # Assign the native breeding ground to each individual. 
     # I don't know how to do this except by doing it individually
     # Fortunately, we can just inherit this maternally, so it only has to be run once
-    print(pop.numSubPop())
     for i in range(0, pop.numSubPop()):
         for individual in pop.individuals(i):
-            print('init_native_breeding_grounds::init subpopulation', i)
             individual.setInfo(i, 'native_breeding_ground')
     return True
 
@@ -411,7 +421,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
 
     # Now read the SNP data. This builds a 2D array indexed as snp[locus][population]
     with open(snp_file, "r") as fd:
-        snp = [list(map(float, line[0:-1].split())) for line in fd]
+        snp_frequencies = [list(map(float, line[0:-1].split())) for line in fd]
 
     # how many sub_populations do we have?
     sub_population_count = len(sub_population_size)
@@ -428,17 +438,17 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     # Population
     # =============================================================================
     
-    
     pop = sim.Population(
         size=individual_count,
         ploidy=2,
-        loci=[nb_loci, 1],
-        # Number of the most recent ancestral generations  to keep during evolution, i.e., 
+        loci=[1, nb_loci],
+        # Number of the most recent ancestral generations  to keep during evolution, i.e.,
         # ancGen=2 keep parental and grandparental generations coexisting with the newest one.
         ancGen=2,
-        infoFields=['age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'],
+        infoFields=['age', 'sex', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'],
         subPopNames=sub_population_names,
-        chromTypes=[sim.AUTOSOME, sim.MITOCHONDRIAL])
+        chromTypes=[sim.AUTOSOME, sim.MITOCHONDRIAL]
+    )
 
     # Create an attribute on each individual called 'age'. 
     # Set it to a random number between 0 and maxMatingAge
@@ -501,9 +511,6 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     # print(pop.subPopName([0,6]))
     # print(pop.subPopName([0,7]))
 
-    
-
-
     ##############################################################################
     # =============================================================================
     # Printing 10 alleles:
@@ -516,7 +523,6 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     #To fix the weight=-1 problem, I'll use BoPeng's solution
     pop.dvars().demo = demo
     sim.stat(pop, popSize=True)
-    
     
     #BO: is important here because the expression 
     #popSize > demo(gen) needs demo in the population's namespace.
@@ -540,6 +546,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     matingScheme = sim.HeteroMating(
         [
             sim.CloneMating(
+                # TODO: check?
                 ops=[sim.CloneGenoTransmitter(chroms=[0,1])],
                 # MK:6 here is because two of the eight virtual subpopulations are deceased.
                 subPops=[(sub_population, 6) for sub_population in range(0, sub_population_count)], 
@@ -573,68 +580,64 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
             sim.IdTagger(),
             sim.PyOperator(func=init_native_breeding_grounds)
         ] +
-        [ sim.InitGenotype(subPops = sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci]) for i in range(0, sub_population_count)] +
-        [ sim.InitGenotype(subPops = sub_population_names[i], freq=[snp[n][i], 1-snp[n][i]], loci=[n]) for i in range(0, sub_population_count) for n in range(0, nb_loci)],
+        [   # mtDNA
+            sim.InitGenotype(subPops=sub_population_names[i], freq=haplotype_frequencies[i], loci=[nb_loci])
+            for i in range(0, sub_population_count)  # n = 1
+        ] +
+        [   # SNP
+            sim.InitGenotype(subPops=sub_population_names[i], freq=[snp_frequencies[n][i], 1-snp_frequencies[n][i]], loci=[n])
+            for i in range(0, sub_population_count) for n in range(0, nb_loci)  # n = 100
+        ],
 
         # increase age by 1
         preOps = [
            sim.InfoExec('age += 1'),
-           sim.Stat(popSize=True), #print pop size in each generation
-           sim.PyEval(r'"Generation %d - %s individuals\n" % (gen, subPopSize)'),
+           sim.PyEval(r'"Generation %d - %s = %s individuals\n" % (gen, subPopSize, popSize)'),
+           
            # randomly reduce population size so that parent generation fits
            sim.PyOperator(func=removeOverspill),
+           
            # Export population in each generation
            Exporter(
                format='csv',
                infoFields=('age', 'ind_id', 'father_id', 'mother_id', 'nitrogen', 'carbon', 'feeding_ground', 'native_breeding_ground', 'migrate_to'), 
-               #output="!'dump_gen_%d.csv' % gen", step=1, begin=BEGIN_LOGGING_AT_GENERATION
                output="!'%s_%%d.csv' %% gen" % get_filename('dump_gen'),
-               #output="!'dump_gen_%d.csv' % gen",
                step=1,
                begin=BEGIN_LOGGING_AT_GENERATION,
                gui='batch'
-           )
+           ),
+
+           # write haploiso file state before whaling.
+           sim.PyOperator(func=write_haploisofile, param=staticPhaseEnd, step=staticPhaseEnd)
         ],
         matingScheme = matingScheme,
         
-        # REMOVING TRAJECTORY TO SEE IF IT WORKS NOW:        
         # MK: we decided to keep the same weight as the mitochondrial transmitter.
-        # sim.ControlledRandomMating(subPopSize=model10, freqFunc=traj.func(), weight=1)]
         postOps = [
             # Determine the isotopic ratios in individuals
             sim.PyOperator(func=postop_processing),
             sim.Migrator(mode=sim.BY_IND_INFO),
             # count the individuals in each virtual subpopulation
             sim.Stat(popSize=True, subPops=[(0,0), (0,1), (0,2), (0,3), (0,4), (0,5), (0,6), (0,7)]),
-            # print virtual subpopulation sizes (there is no individual with age > maxAge after mating)
-            sim.PyEval(r"'\tSize of age groups: %s\n' % (','.join(['%d' % x for x in subPopSize]))"),
             # Alternatively, calculate the Fst
             # ELC: it is a calculation that partitions variance among and between populations, and can 
             # be calculated as a global statistic or on a pairwise basis. We use it as an indication
             # of genetic differentiation.
-            
-            # Construct Fst statistic 
-            sim.Stat(structure=range(1), subPops=sub_population_names, suffix='_AB', step=1),
             # number of males
-            sim.Stat(numOfMales=True, begin=73, step=1),
-            sim.PyEval(r"'\tFst=%.3f \n' % (F_st_AB)", step=1), #Print Fst every 10 steps
-            # added this now, to calculate the allele frequencies in selected loci
-            ##sim.Stat(alleleFreq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq_sp'], step=10),
-            ##sim.PyEval(
-            ##  r"""'%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\n' % (
-            ##    subPop[0]['alleleFreq'][1][1],
-            ##    subPop[0]['alleleFreq'][2][1],
-            ##    subPop[0]['alleleFreq'][3][1],
-            ##    subPop[0]['alleleFreq'][4][1],
-            ##    subPop[0]['alleleFreq'][5][1],
-            ##    subPop[0]['alleleFreq'][6][1],
-            ##    subPop[0]['alleleFreq'][7][1],
-            ##    subPop[0]['alleleFreq'][8][1],
-            ##    subPop[0]['alleleFreq'][9][1],
-            ##    subPop[0]['alleleFreq'][100][1]
-            ##   )
-            ##   """, step=1, begin = 73),
-            # sim.PyOperator(func=lethalEvent)
+            # sim.Stat(numOfMales=True, begin=73, step=1),
+            
+            # Construct Fst statistic (`structure` = is the sites to include)
+            sim.Stat(structure=1, step=1),
+            sim.Stat(structure=1, subPops=sub_population_names, suffix='_AB', step=1),
+            sim.PyEval(r"'\tFst=%.3f, Fst_AB=%.3f\n' % (F_st, F_st_AB)", step=1), #Print Fst
+            # calculate the allele frequencies in selected loci
+            sim.Stat(alleleFreq=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 100], vars=['alleleFreq',], step=1, begin=73),
+            sim.PyEval(
+                r"'\talleleFreq: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n' % " + \
+                 "(alleleFreq[0][1], alleleFreq[1][1], alleleFreq[2][1], alleleFreq[3][1], alleleFreq[4][1], alleleFreq[5][1], alleleFreq[6][1], alleleFreq[7][1], alleleFreq[8][1], alleleFreq[9][1], alleleFreq[100][1])",
+                step=1, begin=73
+            ),
+            # sim.PyOperator(func=lethalEvent),
         ],
         finalOps = sim.Stat(alleleFreq=0, vars=['alleleFreq_sp']),
         gen = 83
@@ -648,7 +651,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
             pop.dvars(idx).alleleFreq[0][0]))
     
     viewVars(pop.vars(), gui=False)
-    sim.dump(pop)
+    sim.dump(pop, structure=False)
 
 
     ped = sim.Pedigree(pop);
@@ -726,17 +729,7 @@ def runSimulation(sub_population_size, minMatingAge, maxMatingAge, gen, mitochon
     nb_ignored_loci = len(monoallelic_loci)
     
     # Generate haploiso file
-    with open(get_filename('haploiso.txt'), 'w') as haplofile:
-        print("sex, haplotype, carbon, nitrogen, native_ground", file=haplofile);
-        for individual in sample.individuals():
-            genotype = individual.genotype();
-            print(
-                1 if individual.sex() == 1 else 0,
-                genotype[nb_loci],
-                individual.info('carbon'),
-                individual.info('nitrogen'),
-                int(individual.info('native_breeding_ground')),
-                file=haplofile, sep=' ')
+    write_haploisofile(pop, 'end')
     
     # Generate mix file
     # with open(get_filename('mixfile.txt'), 'w') as mixfile:
